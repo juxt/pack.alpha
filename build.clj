@@ -109,27 +109,35 @@
       (.close file-mgr)
       (when @throw? (throw (Exception. "java compiler error"))))))
 
-(defn- create-bootstrap
-  []
-  (let [bootstrap-p (Files/createTempDirectory "fatjar-bootstrap"
-                                               (into-array FileAttribute []))]
+(defn- deleting-tmp-dir
+  [prefix]
+  (let [tmp-path (Files/createTempDirectory prefix
+                                            (into-array FileAttribute []))]
     (.addShutdownHook (Runtime/getRuntime)
                       (Thread.
                         (fn []
-                          (fs/delete-dir (.toFile bootstrap-p)))))
+                          (fs/delete-dir (.toFile tmp-path)))))
+    tmp-path))
+
+(defn- create-bootstrap
+  []
+  (let [bootstrap-p (deleting-tmp-dir "fatjar-bootstrap")]
     (javac (.getPath (io/file "bootstrap"))
            (.toFile bootstrap-p)
            nil)
     bootstrap-p))
 
+(defn split-classpath-string
+  [classpath-string]
+  (string/split
+    classpath-string
+    ;; re-pattern should be safe given the characters that can be separators, but could be safer
+    (re-pattern File/pathSeparator)))
+
 (defn classpath-string->jar
   [classpath-string jar-location]
   (let [classpath
-        (map io/file
-             (string/split
-               classpath-string
-               ;; re-pattern should be safe given the characters that can be separators, but could be safer
-               (re-pattern File/pathSeparator)))
+        (map io/file (split-classpath-string classpath-string))
         bootstrap-p (create-bootstrap)]
     (spit-jar!
       jar-location
@@ -172,11 +180,11 @@
   (classpath-string->jar
     (tools.deps/make-classpath
       (tools.deps/resolve-deps deps-map nil)
-      (concat
+      (conj
         (map
           #(.resolveSibling (paths-get [deps-edn])
                             (paths-get [%]))
           (:paths deps-map))
-        (when build-dir [build-dir]))
+        build-dir)
       nil)
     jar-location))
