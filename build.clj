@@ -162,14 +162,21 @@
       []
       "ClojureMainBootstrapJarClassLoader")))
 
-(let [[deps-edn jar-location build-dir] *command-line-args*]
+(defn paths-get
+  [[first & more]]
+  (Paths/get first (into-array String more)))
+
+(let [[deps-edn jar-location build-dir] *command-line-args*
+      deps-map (tools.deps.reader/slurp-deps
+                 (io/file deps-edn))]
   (classpath-string->jar
     (tools.deps/make-classpath
-      (tools.deps/resolve-deps
-        (tools.deps.reader/slurp-deps
-          (io/file deps-edn))
-        nil)
-      (when build-dir
-        [build-dir])
+      (tools.deps/resolve-deps deps-map nil)
+      (concat
+        (map
+          #(.resolveSibling (paths-get [deps-edn])
+                            (paths-get [%]))
+          (:paths deps-map))
+        (when build-dir [build-dir]))
       nil)
     jar-location))
