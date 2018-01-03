@@ -70,43 +70,44 @@
    options ;; options passed to java compiler
    ]
   (.mkdirs tgt)
-  (let [throw?    (atom nil)
-        diag-coll (DiagnosticCollector.)
+  (let [diag-coll (DiagnosticCollector.)
         compiler  (or (ToolProvider/getSystemJavaCompiler)
-                      (throw (Exception. "The java compiler is not working. Please make sure you use a JDK!")))
-        file-mgr  (.getStandardFileManager compiler diag-coll nil nil)
-        opts      (->> ["-d"  (.getPath tgt)
-                        "-cp" input-dir]
-                       (concat options)
-                       (into-array String)
-                       Arrays/asList)
-        ;; prn use a "warning prn"
-        handler   {Diagnostic$Kind/ERROR prn
-                   Diagnostic$Kind/WARNING prn
-                   Diagnostic$Kind/MANDATORY_WARNING prn}
-        srcs      (some->>
-                    (io/file input-dir)
-                    (file-seq)
-                    (filter #(by-ext % "java"))
-                    (into-array File)
-                    Arrays/asList
-                    (.getJavaFileObjectsFromFiles file-mgr))]
-    (when (seq srcs)
-      (-> compiler (.getTask *err* file-mgr diag-coll opts nil srcs) .call)
-      (doseq [d (.getDiagnostics diag-coll) :let [k (.getKind d)]]
-        (when (= Diagnostic$Kind/ERROR k) (reset! throw? true))
-        (let [log (handler k prn)]
-          (if (nil? (.getSource d))
-            (log "%s: %s\n"
-                 (.toString k)
-                 (.getMessage d nil))
-            (log "%s: %s, line %d: %s\n"
-                 (.toString k)
-                 (.. d getSource getName)
-                 (.getLineNumber d)
-                 (.getMessage d nil)))))
-      (.close file-mgr)
-      (when @throw? (throw (Exception. "java compiler error"))))))
+                      (throw (Exception. "The java compiler is not working. Please make sure you use a JDK!")))]
+    (with-open [file-mgr (.getStandardFileManager compiler diag-coll nil nil)]
+      (let [file-mgr (.getStandardFileManager compiler diag-coll nil nil)
+            opts (->> ["-d"  (.getPath tgt)
+                       "-cp" input-dir]
+                      (concat options)
+                      (into-array String)
+                      Arrays/asList)
+
+            srcs      (some->>
+                        (io/file input-dir)
+                        (file-seq)
+                        (filter #(by-ext % "java"))
+                        (into-array File)
+                        Arrays/asList
+                        (.getJavaFileObjectsFromFiles file-mgr))]
+        (when (seq srcs)
+          (-> compiler
+              (.getTask *err* file-mgr diag-coll opts nil srcs)
+              (.call))
+          (let [diagnostics (.getDiagnostics diag-coll)]
+            (doseq [d diagnostics
+                    :let [k (.getKind d)]]
+              (let [log #(prn (apply format %&))]
+                (if (nil? (.getSource d))
+                  (log "%s: %s\n"
+                       (.toString k)
+                       (.getMessage d nil))
+                  (log "%s: %s, line %d: %s\n"
+                       (.toString k)
+                       (.. d getSource getName)
+                       (.getLineNumber d)
+                       (.getMessage d nil)))))
+            (when-first [_ (filter #(= Diagnostic$Kind/ERROR (.getKind %))
+                                   diagnostics)]
+              (throw (Exception. "java compiler error")))))))))
 
 (defn- deleting-tmp-dir
   [prefix]
