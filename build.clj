@@ -92,7 +92,6 @@
                     Arrays/asList
                     (.getJavaFileObjectsFromFiles file-mgr))]
     (when (seq srcs)
-      (println (format "Compiling %d Java source files...\n" (count srcs)))
       (-> compiler (.getTask *err* file-mgr diag-coll opts nil srcs) .call)
       (doseq [d (.getDiagnostics diag-coll) :let [k (.getKind d)]]
         (when (= Diagnostic$Kind/ERROR k) (reset! throw? true))
