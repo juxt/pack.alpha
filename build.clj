@@ -65,8 +65,7 @@
 
 (defn javac
   "Compile java sources. Primitive version for building a self-contained bootstrap"
-  [input-dir
-   tgt
+  [tgt
    options ;; options passed to java compiler
    ]
   (.mkdirs tgt)
@@ -75,39 +74,35 @@
                       (throw (Exception. "The java compiler is not working. Please make sure you use a JDK!")))]
     (with-open [file-mgr (.getStandardFileManager compiler diag-coll nil nil)]
       (let [file-mgr (.getStandardFileManager compiler diag-coll nil nil)
-            opts (->> ["-d"  (.getPath tgt)
-                       "-cp" input-dir]
+            opts (->> ["-d"  (.getPath tgt)]
                       (concat options)
                       (into-array String)
                       Arrays/asList)
 
-            srcs      (some->>
-                        (io/file input-dir)
-                        (file-seq)
-                        (filter #(by-ext % "java"))
-                        (into-array File)
-                        Arrays/asList
-                        (.getJavaFileObjectsFromFiles file-mgr))]
-        (when (seq srcs)
-          (-> compiler
-              (.getTask *err* file-mgr diag-coll opts nil srcs)
-              (.call))
-          (let [diagnostics (.getDiagnostics diag-coll)]
-            (doseq [d diagnostics
-                    :let [k (.getKind d)]]
-              (let [log #(prn (apply format %&))]
-                (if (nil? (.getSource d))
-                  (log "%s: %s\n"
-                       (.toString k)
-                       (.getMessage d nil))
-                  (log "%s: %s, line %d: %s\n"
-                       (.toString k)
-                       (.. d getSource getName)
-                       (.getLineNumber d)
-                       (.getMessage d nil)))))
-            (when-first [_ (filter #(= Diagnostic$Kind/ERROR (.getKind %))
-                                   diagnostics)]
-              (throw (Exception. "java compiler error")))))))))
+            bootstrap (let [file (.toURI (io/resource "ClojureMainBootstrapJarClassLoader.java"))]
+                        (proxy [javax.tools.SimpleJavaFileObject]
+                          [file javax.tools.JavaFileObject$Kind/SOURCE]
+                          (getCharContent [ignoredEncodingErrors]
+                            (slurp file))))]
+        (-> compiler
+            (.getTask *err* file-mgr diag-coll opts nil [bootstrap])
+            (.call))
+        (let [diagnostics (.getDiagnostics diag-coll)]
+          (doseq [d diagnostics
+                  :let [k (.getKind d)]]
+            (let [log #(println (apply format %&))]
+              (if (nil? (.getSource d))
+                (log "%s: %s\n"
+                     (.toString k)
+                     (.getMessage d nil))
+                (log "%s: %s, line %d: %s\n"
+                     (.toString k)
+                     (.. d getSource getName)
+                     (.getLineNumber d)
+                     (.getMessage d nil)))))
+          (when-first [_ (filter #(= Diagnostic$Kind/ERROR (.getKind %))
+                                 diagnostics)]
+            (throw (Exception. "java compiler error"))))))))
 
 (defn- deleting-tmp-dir
   [prefix]
@@ -122,8 +117,7 @@
 (defn- create-bootstrap
   []
   (let [bootstrap-p (deleting-tmp-dir "fatjar-bootstrap")]
-    (javac (.getPath (io/file "bootstrap"))
-           (.toFile bootstrap-p)
+    (javac (.toFile bootstrap-p)
            nil)
     bootstrap-p))
 
