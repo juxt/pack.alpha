@@ -1,16 +1,19 @@
-(require '[clojure.java.io :as io])
-(require '[clojure.string :as string])
-(require '[clojure.tools.deps.alpha :as tools.deps]
-         '[clojure.tools.deps.alpha.makecp]
-         '[clojure.tools.deps.alpha.reader :as tools.deps.reader])
-(require '[me.raynes.fs :as fs])
-(import '[java.util.jar JarEntry JarOutputStream Manifest Attributes$Name])
-(import '[java.util.zip ZipException])
-(import '[javax.tools ToolProvider DiagnosticCollector Diagnostic$Kind])
-(import '[java.util Arrays])
-(import '[java.io File])
-(import '[java.nio.file Paths Path Files]
-        '[java.nio.file.attribute FileAttribute])
+(ns mach.fatjar.main
+  (:require
+    [clojure.java.io :as io]
+    [clojure.string :as string]
+    [clojure.tools.deps.alpha :as tools.deps]
+    [clojure.tools.deps.alpha.makecp]
+    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
+    [me.raynes.fs :as fs])
+  (:import
+    [java.util.jar JarEntry JarOutputStream Manifest Attributes$Name]
+    [java.util.zip ZipException]
+    [javax.tools ToolProvider DiagnosticCollector Diagnostic$Kind]
+    [java.util Arrays]
+    [java.io File]
+    [java.nio.file Paths Path Files]
+    [java.nio.file.attribute FileAttribute]))
 
 ;; code adapted from boot
 (defn- create-manifest [main ext-attrs]
@@ -168,17 +171,19 @@
   [[first & more]]
   (Paths/get first (into-array String more)))
 
-(let [[deps-edn jar-location build-dir] *command-line-args*
-      deps-map (tools.deps.reader/slurp-deps
-                 (io/file deps-edn))]
-  (classpath-string->jar
-    (tools.deps/make-classpath
-      (tools.deps/resolve-deps deps-map nil)
-      (conj
-        (map
-          #(.resolveSibling (paths-get [deps-edn])
-                            (paths-get [%]))
-          (:paths deps-map))
-        build-dir)
-      nil)
-    jar-location))
+(defn -main
+  [& args]
+  (let [[deps-edn jar-location build-dir] args
+        deps-map (tools.deps.reader/slurp-deps
+                   (io/file deps-edn))]
+    (classpath-string->jar
+      (tools.deps/make-classpath
+        (tools.deps/resolve-deps deps-map nil)
+        (conj
+          (map
+            #(.resolveSibling (paths-get [deps-edn])
+                              (paths-get [%]))
+            (:paths deps-map))
+          build-dir)
+        nil)
+      jar-location)))
