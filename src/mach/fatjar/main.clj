@@ -82,13 +82,17 @@
                       (into-array String)
                       Arrays/asList)
 
-            bootstrap (let [file (.toURI (io/resource "ClojureMainBootstrapJarClassLoader.java"))]
-                        (proxy [javax.tools.SimpleJavaFileObject]
-                          [file javax.tools.JavaFileObject$Kind/SOURCE]
-                          (getCharContent [ignoredEncodingErrors]
-                            (slurp file))))]
+            bootstrap
+            (map
+              #(let [file (.toURI (io/resource %))]
+                 (proxy [javax.tools.SimpleJavaFileObject]
+                   [file javax.tools.JavaFileObject$Kind/SOURCE]
+                   (getCharContent [ignoredEncodingErrors]
+                     (slurp file))))
+              ["mach/fatjar/bootstrap/com/jdotsoft/jarloader/JarClassLoader.java"
+               "mach/fatjar/bootstrap/ClojureMainBootstrapJarClassLoader.java"])]
         (-> compiler
-            (.getTask *err* file-mgr diag-coll opts nil [bootstrap])
+            (.getTask *err* file-mgr diag-coll opts nil bootstrap)
             (.call))
         (let [diagnostics (.getDiagnostics diag-coll)]
           (doseq [d diagnostics
