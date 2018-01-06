@@ -84,9 +84,10 @@
 
             bootstrap
             (map
-              #(let [file (.toURI (io/resource %))]
+              #(let [file (io/resource %)]
                  (proxy [javax.tools.SimpleJavaFileObject]
-                   [file javax.tools.JavaFileObject$Kind/SOURCE]
+                   [(java.net.URI. (str "string://" (string/replace % #"mach/fatjar" "")))
+                    javax.tools.JavaFileObject$Kind/SOURCE]
                    (getCharContent [ignoredEncodingErrors]
                      (slurp file))))
               ["mach/fatjar/bootstrap/com/jdotsoft/jarloader/JarClassLoader.java"
