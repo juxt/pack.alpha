@@ -1,0 +1,22 @@
+= Fatjar (alpha)
+
+Create a fatjar from a deps.edn file.
+
+== Building
+
+Run clj to update the pom.xml
+
+----
+$ clj -Spom
+----
+
+Remove the `<sourceDirectory>` tag from the pom.xml.
+
+Then use maven as normal:
+
+----
+$ mvn install
+$ mvn deploy
+----
+
+to install locally.
