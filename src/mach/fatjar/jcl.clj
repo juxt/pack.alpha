@@ -1,4 +1,4 @@
-(ns mach.fatjar.main
+(ns mach.fatjar.jcl
   (:require
     [clojure.java.io :as io]
     [clojure.string :as string]
