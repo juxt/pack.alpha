@@ -60,7 +60,6 @@
 
 (defn- consume-input-stream
   [input-stream]
-  ;; TODO: This is a very slow, find a way to make faster
   (let [buf-n 2048
         buffer (byte-array buf-n)]
     (while (> (.read input-stream buffer 0 buf-n) 0))))
