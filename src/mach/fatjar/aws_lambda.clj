@@ -50,6 +50,29 @@
     ;; re-pattern should be safe given the characters that can be separators, but could be safer
     (re-pattern File/pathSeparator)))
 
+(defn paths-get
+  [[first & more]]
+  (Paths/get first (into-array String more)))
+
+(defn- signature
+  [algorithm]
+  (javax.xml.bind.DatatypeConverter/printHexBinary (.digest algorithm)))
+
+(defn- consume-input-stream
+  [input-stream]
+  ;; TODO: This is a very slow, find a way to make faster
+  (let [buf-n 2048
+        buffer (byte-array buf-n)]
+    (while (> (.read input-stream buffer 0 buf-n) 0))))
+
+(defn sha256
+  [file]
+  (.getMessageDigest
+    (doto
+      (java.security.DigestInputStream. (io/input-stream file)
+                                        (java.security.MessageDigest/getInstance "SHA-256"))
+      consume-input-stream)))
+
 (defn classpath-string->zip
   [classpath-string zip-location]
   (let [classpath
@@ -72,13 +95,11 @@
                   cat
                   (filter (memfn isFile))
                   (filter #(by-ext % "jar"))
-                  (map (juxt #(str (Paths/get "lib" (into-array String (map str (iterator-seq (.iterator (.toPath %)))))))
+                  (map (juxt #(str (paths-get ["lib" (str (signature (sha256 %))
+                                                          "-"
+                                                          (.getName %))]))
                              identity)))
                 classpath)))))
-
-(defn paths-get
-  [[first & more]]
-  (Paths/get first (into-array String more)))
 
 (defn -main
   [& args]
