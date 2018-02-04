@@ -3,7 +3,7 @@
     [clojure.java.io :as io]
     [clojure.string :as string]
     [clojure.tools.deps.alpha :as tools.deps]
-    [clojure.tools.deps.alpha.makecp]
+    [clojure.tools.deps.alpha.script.make-classpath]
     [clojure.tools.deps.alpha.reader :as tools.deps.reader]
     [me.raynes.fs :as fs])
   (:import

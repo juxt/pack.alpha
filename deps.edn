@@ -1,7 +1,7 @@
 {
   :paths ["src"]
   :deps {
-    org.clojure/tools.deps.alpha {:mvn/version "0.5.342"}
+    org.clojure/tools.deps.alpha {:mvn/version "0.5.351"}
     me.raynes/fs {:mvn/version "1.4.6"}
   }
 }
