@@ -1,4 +1,4 @@
-(ns mach.fatjar.jcl
+(ns mach.pack.jcl
   (:require
     [clojure.java.io :as io]
     [clojure.string :as string]
@@ -86,12 +86,12 @@
             (map
               #(let [file (io/resource %)]
                  (proxy [javax.tools.SimpleJavaFileObject]
-                   [(java.net.URI. (str "string://" (string/replace % #"mach/fatjar" "")))
+                   [(java.net.URI. (str "string://" (string/replace % #"mach/pack" "")))
                     javax.tools.JavaFileObject$Kind/SOURCE]
                    (getCharContent [ignoredEncodingErrors]
                      (slurp file))))
-              ["mach/fatjar/bootstrap/com/jdotsoft/jarloader/JarClassLoader.java"
-               "mach/fatjar/bootstrap/ClojureMainBootstrapJarClassLoader.java"])]
+              ["mach/pack/bootstrap/com/jdotsoft/jarloader/JarClassLoader.java"
+               "mach/pack/bootstrap/ClojureMainBootstrapJarClassLoader.java"])]
         (-> compiler
             (.getTask *err* file-mgr diag-coll opts nil bootstrap)
             (.call))
@@ -124,7 +124,7 @@
 
 (defn- create-bootstrap
   []
-  (let [bootstrap-p (deleting-tmp-dir "fatjar-bootstrap")]
+  (let [bootstrap-p (deleting-tmp-dir "pack-bootstrap")]
     (javac (.toFile bootstrap-p)
            nil)
     bootstrap-p))

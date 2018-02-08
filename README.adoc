@@ -1,6 +1,6 @@
-= Fatjar (alpha)
+= Pack (alpha)
 
-Create a fatjar from a deps.edn file.
+Package up Clojure projects in various ways, based on a deps.edn file.
 
 == Building
 
