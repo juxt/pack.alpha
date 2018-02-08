@@ -1,4 +1,4 @@
-(ns mach.pack.jcl
+(ns mach.pack.alpha.jcl
   (:require
     [clojure.java.io :as io]
     [clojure.string :as string]
@@ -90,8 +90,8 @@
                     javax.tools.JavaFileObject$Kind/SOURCE]
                    (getCharContent [ignoredEncodingErrors]
                      (slurp file))))
-              ["mach/pack/bootstrap/com/jdotsoft/jarloader/JarClassLoader.java"
-               "mach/pack/bootstrap/ClojureMainBootstrapJarClassLoader.java"])]
+              ["mach/pack/alpha/bootstrap/com/jdotsoft/jarloader/JarClassLoader.java"
+               "mach/pack/alpha/bootstrap/ClojureMainBootstrapJarClassLoader.java"])]
         (-> compiler
             (.getTask *err* file-mgr diag-coll opts nil bootstrap)
             (.call))

@@ -1,4 +1,4 @@
-(ns mach.pack.aws-lambda
+(ns mach.pack.alpha.aws-lambda
   (:require
     [clojure.java.io :as io]
     [clojure.string :as string]
