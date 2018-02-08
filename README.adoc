@@ -10,13 +10,28 @@ The lambda approach will generate a zip which can be uploaded to AWS.
 
 [source,clojure]
 ----
-clj -Sdeps '{:deps {pro.juxt/pack.alpha {:git/url "git@github.com:juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.aws-lambda deps.edn lambda.zip build_dir
+clj -Sdeps '{:deps {pack/pack.alpha {:git/url "git@github.com:juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.aws-lambda deps.edn lambda.zip build_dir
 ----
 
 In this example:
 * `deps.edn` is the location of the deps.edn to consume.
 * lambda.zip is where to write the package to.
 * build_dir is a directory containing extra paths to add, for example it may be where you compile classes to, or write built css to.
+
+=== Uberjar
+
+[source,clojure]
+----
+$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "git@github.com:juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.jcl deps.edn uberjar.jar build_dir
+$ java -jar uberjar.jar -m myapp.main
+----
+
+In this example:
+* `deps.edn` is the location of the deps.edn to consume.
+* uberjar.jar is the resulting jar name
+* build_dir is a directory containing extra paths to add, for example it may be where you compile classes to, or write built css to.
+
+The jar's entrypoint is set to clojure.main, and therefore the jar takes all of the same options as clojure.main.
 
 == Building
 
