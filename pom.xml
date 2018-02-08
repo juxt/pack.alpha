@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>mach.mono</groupId>
+  <groupId>pack</groupId>
   <artifactId>pack.alpha</artifactId>
   <version>0.1.0</version>
   <name>pack</name>
@@ -14,7 +14,7 @@
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>tools.deps.alpha</artifactId>
-      <version>0.3.231</version>
+      <version>0.5.351</version>
     </dependency>
     <dependency>
       <groupId>me.raynes</groupId>
@@ -22,12 +22,6 @@
       <version>1.4.6</version>
     </dependency>
   </dependencies>
-  <repositories>
-    <repository>
-      <id>clojars</id>
-      <url>https://clojars.org/repo</url>
-    </repository>
-  </repositories>
   <build>
    <resources>
      <resource>
@@ -35,4 +29,11 @@
      </resource>
    </resources>
   </build>
+  <distributionManagement>
+    <repository>
+      <id>clojars</id>
+      <name>Clojars repository</name>
+      <url>https://clojars.org/repo</url>
+    </repository>
+  </distributionManagement>
 </project>
