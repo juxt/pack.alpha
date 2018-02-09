@@ -14,6 +14,7 @@ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "git@github.com:juxt/pack.alpha.gi
 ----
 
 In this example:
+
 * `deps.edn` is the location of the deps.edn to consume.
 * lambda.zip is where to write the package to.
 * build_dir is a directory containing extra paths to add, for example it may be where you compile classes to, or write built css to.
@@ -27,6 +28,7 @@ $ java -jar uberjar.jar -m myapp.main
 ----
 
 In this example:
+
 * `deps.edn` is the location of the deps.edn to consume.
 * uberjar.jar is the resulting jar name
 * build_dir is a directory containing extra paths to add, for example it may be where you compile classes to, or write built css to.
