@@ -10,7 +10,7 @@ The lambda approach will generate a zip which can be uploaded to AWS.
 
 [source,clojure]
 ----
-clj -Sdeps '{:deps {pack/pack.alpha {:git/url "git@github.com:juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.aws-lambda deps.edn lambda.zip build_dir
+clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.aws-lambda deps.edn lambda.zip build_dir
 ----
 
 In this example:
@@ -23,7 +23,7 @@ In this example:
 
 [source,clojure]
 ----
-$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "git@github.com:juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.jcl deps.edn uberjar.jar build_dir
+$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.jcl deps.edn uberjar.jar build_dir
 $ java -jar uberjar.jar -m myapp.main
 ----
 
