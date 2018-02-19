@@ -35,6 +35,8 @@ In this example:
 
 The jar's entrypoint is set to clojure.main, and therefore the jar takes all of the same options as clojure.main.
 
+WARNING: jcl is based on link:http://www.jdotsoft.com/JarClassLoader.php[Jar Class Loader] which is licensed under GPLv3. In the future an alternative loader will be provided.
+
 == Building
 
 Run clj to update the pom.xml
