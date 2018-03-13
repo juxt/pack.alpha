@@ -1,6 +1,7 @@
 (ns mach.pack.alpha.aws-lambda
   (:require
     [clojure.java.io :as io]
+    [clojure.java.shell :as sh]
     [clojure.string :as string]
     [clojure.tools.deps.alpha :as tools.deps]
     [clojure.tools.deps.alpha.script.make-classpath]
@@ -100,11 +101,18 @@
                              identity)))
                 classpath)))))
 
+(defn- scrape-clojure-env
+  []
+  (let [{:keys [out exit] :as result} (sh/sh "clojure" "-Sdescribe" "-Srepro")]
+    (if (zero? exit)
+      (read-string out)
+      (throw (ex-info "Unable to locate Clojure's edn files" result)))))
+
 (defn -main
   [& args]
   (let [[deps-edn jar-location build-dir] args
-        deps-map (tools.deps.reader/slurp-deps
-                   (io/file deps-edn))]
+        deps-map (tools.deps.reader/read-deps
+                   (:config-files (scrape-clojure-env)))]
     (classpath-string->zip
       (tools.deps/make-classpath
         (tools.deps/resolve-deps deps-map nil)
