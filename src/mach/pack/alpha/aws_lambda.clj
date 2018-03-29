@@ -1,43 +1,14 @@
 (ns mach.pack.alpha.aws-lambda
   (:require
-    [clojure.java.io :as io]
-    [clojure.string :as string]
-    [clojure.tools.deps.alpha :as tools.deps]
-    [clojure.tools.deps.alpha.script.make-classpath]
-    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
-    [me.raynes.fs :as fs])
+   [clojure.java.io :as io]
+   [clojure.string :as string]
+   [clojure.tools.deps.alpha :as tools.deps]
+   [clojure.tools.deps.alpha.reader :as tools.deps.reader]
+   [clojure.tools.deps.alpha.script.make-classpath]
+   [mach.pack.alpha.impl.assembly :refer [spit-zip!]])
   (:import
-    [java.util.jar JarEntry JarOutputStream Manifest Attributes$Name]
-    [java.util.zip ZipException ZipOutputStream ZipEntry]
-    [javax.tools ToolProvider DiagnosticCollector Diagnostic$Kind]
-    [java.util Arrays]
-    [java.io File]
-    [java.nio.file Paths Path Files]
-    [java.nio.file.attribute FileAttribute]))
-
-(defn- write! [stream file]
-  (let [buf (byte-array 1024)]
-    (with-open [in (io/input-stream file)]
-      (loop [n (.read in buf)]
-        (when-not (= -1 n)
-          (.write stream buf 0 n)
-          (recur (.read in buf)))))))
-
-(defn dupe? [t]
-  (and (instance? ZipException t)
-       (.startsWith (.getMessage t) "duplicate entry:")))
-
-(defn spit-zip! [zippath files]
-  (let [zipfile (io/file zippath)]
-    (io/make-parents zipfile)
-    (with-open [s (ZipOutputStream. (io/output-stream zipfile))]
-      (doseq [[^String zippath ^String srcpath] files :let [f (io/file srcpath)]]
-        (when-not (.isDirectory f)
-          (let [entry (doto (ZipEntry. zippath) (.setTime (.lastModified f)))]
-            (try
-              (doto s (.putNextEntry entry) (write! srcpath) .closeEntry)
-              (catch Throwable t
-                (if-not (dupe? t) (throw t) (println (.getMessage t)))))))))))
+   java.io.File
+   java.nio.file.Paths))
 
 (defn by-ext
   [f ext]

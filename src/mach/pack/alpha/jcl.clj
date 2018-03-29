@@ -1,66 +1,18 @@
 (ns mach.pack.alpha.jcl
   (:require
-    [clojure.java.io :as io]
-    [clojure.string :as string]
-    [clojure.tools.deps.alpha :as tools.deps]
-    [clojure.tools.deps.alpha.script.make-classpath]
-    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
-    [me.raynes.fs :as fs])
+   [clojure.java.io :as io]
+   [clojure.string :as string]
+   [clojure.tools.deps.alpha :as tools.deps]
+   [clojure.tools.deps.alpha.reader :as tools.deps.reader]
+   [clojure.tools.deps.alpha.script.make-classpath]
+   [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
+   [me.raynes.fs :as fs])
   (:import
-    [java.util.jar JarEntry JarOutputStream Manifest Attributes$Name]
-    [java.util.zip ZipException]
-    [javax.tools ToolProvider DiagnosticCollector Diagnostic$Kind]
-    [java.util Arrays]
-    [java.io File]
-    [java.nio.file Paths Path Files]
-    [java.nio.file.attribute FileAttribute]))
-
-;; code adapted from boot
-(defn- create-manifest [main ext-attrs]
-  (let [manifest (Manifest.)]
-    (let [attributes (.getMainAttributes manifest)]
-      (.put attributes Attributes$Name/MANIFEST_VERSION "1.0")
-      (when-let [m (and main (.replaceAll (str main) "-" "_"))]
-        (.put attributes Attributes$Name/MAIN_CLASS m))
-      (doseq [[k v] ext-attrs]
-        (.put attributes (Attributes$Name. (name k)) v)))
-    manifest))
-
-(defn- write! [stream file]
-  (let [buf (byte-array 1024)]
-    (with-open [in (io/input-stream file)]
-      (loop [n (.read in buf)]
-        (when-not (= -1 n)
-          (.write stream buf 0 n)
-          (recur (.read in buf)))))))
-
-(defn dupe? [t]
-  (and (instance? ZipException t)
-       (.startsWith (.getMessage t) "duplicate entry:")))
-
-(defn jarentry [path f & [dir?]]
-  (doto (JarEntry. (str (.replaceAll path "\\\\" "/") (when dir? "/")))
-    (.setTime (.lastModified f))))
-
-(defn spit-jar! [jarpath files attr main]
-  (let [manifest  (create-manifest main attr)
-        jarfile   (io/file jarpath)
-        dirs      (atom #{})
-        parents*  #(iterate (comp (memfn getParent) io/file) %)
-        parents   #(->> % parents* (drop 1)
-                        (take-while (complement empty?))
-                        (remove (partial contains? @dirs)))]
-    (io/make-parents jarfile)
-    (with-open [s (JarOutputStream. (io/output-stream jarfile) manifest)]
-      (doseq [[jarpath srcpath] files :let [f (io/file srcpath)]]
-        (let [e (jarentry jarpath f)]
-          (try
-            (doseq [d (parents jarpath) :let [f (io/file d)]]
-              (swap! dirs conj d)
-              (doto s (.putNextEntry (jarentry d f true)) .closeEntry))
-            (doto s (.putNextEntry e) (write! (io/input-stream srcpath)) .closeEntry)
-            (catch Throwable t
-              (if-not (dupe? t) (throw t) (println " warning: %s\n" (.getMessage t))))))))))
+   java.io.File
+   [java.nio.file Files Paths]
+   java.nio.file.attribute.FileAttribute
+   java.util.Arrays
+   [javax.tools Diagnostic$Kind DiagnosticCollector ToolProvider]))
 
 (defn by-ext
   [f ext]
@@ -69,8 +21,7 @@
 (defn javac
   "Compile java sources. Primitive version for building a self-contained bootstrap"
   [tgt
-   options ;; options passed to java compiler
-   ]
+   options] ;; options passed to java compiler
   (.mkdirs tgt)
   (let [diag-coll (DiagnosticCollector.)
         compiler  (or (ToolProvider/getSystemJavaCompiler)
