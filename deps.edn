@@ -1,8 +1,4 @@
-{
-  :paths ["src"]
-  :deps {
-    org.clojure/tools.deps.alpha {:mvn/version "0.5.351"}
-    me.raynes/fs {:mvn/version "1.4.6"}
-    co.paralleluniverse/capsule {:mvn/version "1.0.3"}
-  }
-}
+{:paths ["src"]
+ :deps {org.clojure/tools.deps.alpha {:mvn/version "0.5.351"}
+        me.raynes/fs {:mvn/version "1.4.6"}
+        co.paralleluniverse/capsule {:mvn/version "1.0.3"}}}
