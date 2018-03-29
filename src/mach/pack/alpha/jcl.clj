@@ -6,6 +6,7 @@
    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
    [clojure.tools.deps.alpha.script.make-classpath]
    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
+   [mach.pack.alpha.impl.elodin :as elodin]
    [me.raynes.fs :as fs])
   (:import
    java.io.File
@@ -110,7 +111,10 @@
                   cat
                   (filter (memfn isFile))
                   (filter #(by-ext % "jar"))
-                  (map (juxt #(str (Paths/get "lib" (into-array String (map str (iterator-seq (.iterator (.toPath %)))))))
+                  (map (juxt (comp
+                               elodin/path-seq->str
+                               #(cons "lib" %)
+                               elodin/full-path-derived-name)
                              identity)))
                 classpath)
               ;; compiled bootstrap files

@@ -5,7 +5,8 @@
    [clojure.tools.deps.alpha :as tools.deps]
    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
    [clojure.tools.deps.alpha.script.make-classpath]
-   [mach.pack.alpha.impl.assembly :refer [spit-zip!]])
+   [mach.pack.alpha.impl.assembly :refer [spit-zip!]]
+   [mach.pack.alpha.impl.elodin :as elodin])
   (:import
    java.io.File
    java.nio.file.Paths))
@@ -24,24 +25,6 @@
 (defn paths-get
   [[first & more]]
   (Paths/get first (into-array String more)))
-
-(defn- signature
-  [algorithm]
-  (javax.xml.bind.DatatypeConverter/printHexBinary (.digest algorithm)))
-
-(defn- consume-input-stream
-  [input-stream]
-  (let [buf-n 2048
-        buffer (byte-array buf-n)]
-    (while (> (.read input-stream buffer 0 buf-n) 0))))
-
-(defn sha256
-  [file]
-  (.getMessageDigest
-    (doto
-      (java.security.DigestInputStream. (io/input-stream file)
-                                        (java.security.MessageDigest/getInstance "SHA-256"))
-      consume-input-stream)))
 
 (defn classpath-string->zip
   [classpath-string zip-location]
@@ -65,9 +48,8 @@
                   cat
                   (filter (memfn isFile))
                   (filter #(by-ext % "jar"))
-                  (map (juxt #(str (paths-get ["lib" (str (signature (sha256 %))
-                                                          "-"
-                                                          (.getName %))]))
+                  (map (juxt #(elodin/path-seq->str
+                                (cons "lib" (elodin/hash-derived-name)))
                              identity)))
                 classpath)))))
 

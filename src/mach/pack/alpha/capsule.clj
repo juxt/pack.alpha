@@ -6,6 +6,7 @@
    [clojure.tools.deps.alpha.script.make-classpath]
    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
+   [mach.pack.alpha.impl.elodin :as elodin]
    [me.raynes.fs :as fs])
   (:import
    java.io.File
@@ -34,24 +35,6 @@
     ;; re-pattern should be safe given the characters that can be separators, but could be safer
     (re-pattern File/pathSeparator)))
 
-(defn- signature
-  [algorithm]
-  (javax.xml.bind.DatatypeConverter/printHexBinary (.digest algorithm)))
-
-(defn- consume-input-stream
-  [input-stream]
-  (let [buf-n 2048
-        buffer (byte-array buf-n)]
-    (while (> (.read input-stream buffer 0 buf-n) 0))))
-
-(defn sha256
-  [file]
-  (.getMessageDigest
-    (doto
-      (java.security.DigestInputStream. (io/input-stream file)
-                                        (java.security.MessageDigest/getInstance "SHA-256"))
-      consume-input-stream)))
-
 (defn paths-get
   [[first & more]]
   (Paths/get first (into-array String more)))
@@ -78,9 +61,8 @@
                   cat
                   (filter (memfn isFile))
                   (filter #(by-ext % "jar"))
-                  (map (juxt #(str (signature (sha256 %))
-                                   "-"
-                                   (.getName %))
+                  (map (juxt (comp elodin/path-seq->str
+                                   elodin/hash-derived-name)
                              io/file)))
                 classpath)
               [["Capsule.class" (io/resource "Capsule.class")]])
