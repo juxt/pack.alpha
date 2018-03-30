@@ -25,7 +25,7 @@ In this example:
 
 [source,clojure]
 ----
-$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "bb2c5a2c78aca9328e023b029c06ba0efdd1e3b7"}}}' -m mach.pack.alpha.capsule -O uberjar.jar -e build-dir --application-id mycoolapp --application-version "$(git describe)" -m myapp.main
+$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "a290401920635e1b360193161e6bf4bee68b93fc"}}}' -m mach.pack.alpha.capsule -O uberjar.jar -e build-dir --application-id mycoolapp --application-version "$(git describe)" -m myapp.main
 $ java -jar uberjar.jar
 ----
 
