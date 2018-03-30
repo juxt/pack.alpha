@@ -25,19 +25,25 @@ In this example:
 
 [source,clojure]
 ----
-$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "bb2c5a2c78aca9328e023b029c06ba0efdd1e3b7"}}}' -m mach.pack.alpha.capsule deps.edn uberjar.jar build_dir my.cool.application 0.1.0-6-g46100ae
-$ java -jar uberjar.jar -m myapp.main
+$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "bb2c5a2c78aca9328e023b029c06ba0efdd1e3b7"}}}' -m mach.pack.alpha.capsule -O uberjar.jar -e build-dir --application-id mycoolapp --application-version "$(git describe)" -m myapp.main
+$ java -jar uberjar.jar
 ----
 
-In this example:
+[source]
+----
+  -d, --deps STRING                 deps.edn  deps.edn file location
+  -O, --output STRING                         output jar location
+  -e, --extra-path STRING                     add directory to classpath for building
+  -h, --help                                  show this help
+  -m, --main SYMBOL                           main namespace
+      --application-id STRING                 globally unique name for application, used for caching.
+      --application-version STRING            unique version for this uberjar, used for caching.
+----
 
-* `deps.edn` is the location of the deps.edn to consume
-* uberjar.jar is the resulting jar name
-* build_dir is a directory containing extra paths to add, for example it may be where you compile classes to, or write built css to.
-* `my.cool.application` is your Application-ID, this must be unique to your jar
-* `0.1.0-6-g46100ae` is your Application-Version, I've been using `$(git describe)` to populate this
-
-The jar's entrypoint is set to clojure.main, and therefore the jar takes all of the same options as clojure.main.
+The main *does not* need `:gen-class`, it follows the same semantics as clojure.main's `-m main`.
+If main is not specified, it will default to `clojure.main`, meaning it can take options like `-m` or `-r`.
+`extra-path` is useful for adding clojurescript & css to the resulting jar.
+It can be used multiple times.
 
 INFO: In the future I will extend Capsule support to include capsule-specific features, such as caplets and many of the related manifest attributes.
 

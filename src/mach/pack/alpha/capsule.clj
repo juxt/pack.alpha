@@ -2,6 +2,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.string :as string]
+   [clojure.tools.cli :as cli]
    [clojure.tools.deps.alpha :as tools.deps]
    [clojure.tools.deps.alpha.script.make-classpath]
    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
@@ -40,7 +41,7 @@
   (Paths/get first (into-array String more)))
 
 (defn classpath-string->jar
-  [classpath-string jar-location application-id application-version]
+  [classpath-string jar-location application-id application-version main]
   (let [classpath
         (map io/file (split-classpath-string classpath-string))]
     (spit-jar!
@@ -66,26 +67,59 @@
                              io/file)))
                 classpath)
               [["Capsule.class" (io/resource "Capsule.class")]])
-      [["Application-Class" "clojure.main"]
-       ["Application-ID" application-id]
-       ["Application-Version" application-version]]
+      (cond->
+        [["Application-Class" "clojure.main"]
+         ["Application-ID" application-id]
+         ["Application-Version" application-version]]
+        main
+        (conj ["Args" (str "-m " main)]))
       "Capsule")))
+
+(def ^:private cli-options
+  [["-d" "--deps STRING" "deps.edn file location"
+    :default "deps.edn"
+    :parse-fn io/file
+    :validate [(memfn exists) "deps.edn file must exist"]]
+   ["-O" "--output STRING" "output jar location"]
+   ["-e" "--extra-path STRING" "add directory to classpath for building"
+    :assoc-fn (fn [m k v] (update m k conj v))]
+   ["-h" "--help" "show this help"]
+   ["-m" "--main SYMBOL" "main namespace"
+    :parse-fn symbol]
+   [nil "--application-id STRING" "globally unique name for application, used for caching"]
+   [nil "--application-version STRING" "unique version for this uberjar, used for caching"]])
+
+(defn- error-msg [errors]
+  (str "The following errors occurred while parsing your command:\n\n"
+       (string/join \newline errors)))
 
 (defn -main
   [& args]
-  (let [[deps-edn jar-location build-dir application-id application-version] args
-        deps-map (tools.deps.reader/slurp-deps
-                   (io/file deps-edn))]
-    (classpath-string->jar
-      (tools.deps/make-classpath
-        (tools.deps/resolve-deps deps-map nil)
-        (conj
+  (let [{{:keys [deps
+                 output
+                 extra-path
+                 main
+                 application-id
+                 application-version
+                 help]} :options
+         :as parsed-opts}
+        (cli/parse-opts args cli-options)
+        deps-map (tools.deps.reader/slurp-deps (io/file deps))]
+    (cond
+      help
+      (println (:summary parsed-opts))
+      (:errors parsed-opts)
+      (println (error-msg (:errors parsed-opts)))
+      :else
+      (classpath-string->jar
+        (tools.deps/make-classpath
+          (tools.deps/resolve-deps deps-map nil)
           (map
-            #(.resolveSibling (paths-get [deps-edn])
+            #(.resolveSibling (paths-get [deps])
                               (paths-get [%]))
             (:paths deps-map))
-          build-dir)
-        nil)
-      jar-location
-      application-id
-      application-version)))
+          {:extra-paths extra-path})
+        output
+        application-id
+        application-version
+        main))))
