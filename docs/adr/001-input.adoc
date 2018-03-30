@@ -33,14 +33,30 @@ You lose the ability to run `clj -m pack.main app/deps.edn` in order to share de
 This suggests to me that it's probably useful to have some way to override properties via the CLI.
 I'm not sure if this should extend to _any_ property, `merge`, or specific properties (following the aero principles).
 
+The ability to build a deployable without any starting friction should be retained.
+Commonly, a deployable doesn't need much configuration.
+This is particularly true in the case of JCL & AWS Lambda.
+
 == Decision
 
-Read a edn file to get config.
+Rewrite the interface to use a CLI command syntax.
+
+[source,bash]
+----
+$ clj -m pack.alpha.main jcl --output uberjar.jar --extra build_dir
+$ clj -m pack.alpha.main capsule --output uberjar.jar --application-name foo --application-version 10.1
+$ clj -m pack.alpha.main lambda --output lambda.zip --deps app/deps.edn
+----
+
+Each type will have it's own set of flags that it takes.
+Effort will be made to ensure that names are consistent where possible.
+
+Read a edn file to get extended config.
 
 Command line options will exist for:
 
 * Providing CLI flags to the edn file
-* Specifying a profile (mandatory)
+* Specifying a profile (mandatory if #pack/profile is used)
 * Specifying a pack.alpha.edn location, defaulting to $cwd/pack.alpha.edn
 
 Create an aero-like set of readers.
@@ -50,10 +66,12 @@ The following readers will exist:
 * `#pack/env` for reading an environment variable.
 * `#pack/profile` for performing a `case` on the profile.
 
+As env and cli params are implicitly strings, they will need to pass through coercion.
+Avoiding clojure.spec conformers is preferred, due to warnings issued by the core team footnote:[https://stackoverflow.com/a/49056441].
+Use https://github.com/wilkerlucio/spec-coerce to coerce the input edn.
+
 == Status
 
 Proposed
 
 == Consequences
-
-* Specifying non-string properties from env/cli is not possible
