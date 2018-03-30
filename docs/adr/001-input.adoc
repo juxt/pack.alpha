@@ -1,0 +1,59 @@
+= ADR: How to input config
+
+== Context
+
+Pack needs arguments in order to build it's outputs.
+This configuration quantity varies in quantity.
+
+For AWS Lambda, there is very little configuration:
+
+* deps.edn location
+* output jar location
+* build-dir
+
+For Capsule there is quite a lot:
+
+* JVM args
+* environment variable overrides
+* system properties
+* min-java-version
+* application version
+* application-id
+
+Attributes fall into categories:
+
+* Runtime known, e.g. application-version
+* Permanent, e.g. application-id
+* Context-specific, e.g. JVM args
+
+There is also the special category "deps.edn", which is a file path.
+It's currently relative to the cwd.
+
+You lose the ability to run `clj -m pack.main app/deps.edn` in order to share deps.edn configs at all times.
+This suggests to me that it's probably useful to have some way to override properties via the CLI.
+I'm not sure if this should extend to _any_ property, `merge`, or specific properties (following the aero principles).
+
+== Decision
+
+Read a edn file to get config.
+
+Command line options will exist for:
+
+* Providing CLI flags to the edn file
+* Specifying a profile (mandatory)
+* Specifying a pack.alpha.edn location, defaulting to $cwd/pack.alpha.edn
+
+Create an aero-like set of readers.
+The following readers will exist:
+
+* `#pack/cli` for loading options from the command-line.
+* `#pack/env` for reading an environment variable.
+* `#pack/profile` for performing a `case` on the profile.
+
+== Status
+
+Proposed
+
+== Consequences
+
+* Specifying non-string properties from env/cli is not possible
