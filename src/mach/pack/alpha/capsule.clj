@@ -76,18 +76,32 @@
       "Capsule")))
 
 (def ^:private cli-options
-  [["-d" "--deps STRING" "deps.edn file location"
+  [["-m" "--main SYMBOL" "main namespace"
+    :parse-fn symbol]
+   [nil "--application-id STRING" "globally unique name for application, used for caching"]
+   [nil "--application-version STRING" "unique version for this uberjar, used for caching"]
+   ["-e" "--extra-path STRING" "add directory to classpath for building"
+    :assoc-fn (fn [m k v] (update m k conj v))]
+   ["-d" "--deps STRING" "deps.edn file location"
     :default "deps.edn"
     :parse-fn io/file
     :validate [(memfn exists) "deps.edn file must exist"]]
-   ["-O" "--output STRING" "output jar location"]
-   ["-e" "--extra-path STRING" "add directory to classpath for building"
-    :assoc-fn (fn [m k v] (update m k conj v))]
-   ["-h" "--help" "show this help"]
-   ["-m" "--main SYMBOL" "main namespace"
-    :parse-fn symbol]
-   [nil "--application-id STRING" "globally unique name for application, used for caching"]
-   [nil "--application-version STRING" "unique version for this uberjar, used for caching"]])
+   ["-h" "--help" "show this help"]])
+
+(defn- usage
+  [summary]
+  (->>
+    ["Usage: clj -m mach.pack.alpha.capsule [options] <path/to/output.jar>"
+     ""
+     "Options:"
+     summary
+     ""
+     "output.jar is where to put the output uberjar. Leading directories will be created."
+     ""
+     "Please see capsule user guide for explanation of application id and version"
+     "and whether you need them."
+     "http://www.capsule.io/user-guide/"]
+    (string/join \newline)))
 
 (defn- error-msg [errors]
   (str "The following errors occurred while parsing your command:\n\n"
@@ -102,14 +116,18 @@
                  application-id
                  application-version
                  help]} :options
+         [output] :arguments
          :as parsed-opts}
         (cli/parse-opts args cli-options)
-        deps-map (tools.deps.reader/slurp-deps (io/file deps))]
+        deps-map (tools.deps.reader/slurp-deps (io/file deps))
+        errors (cond-> (:errors parsed-opts)
+                 (not output)
+                 (conj "Output jar must be specified"))]
     (cond
       help
-      (println (:summary parsed-opts))
-      (:errors parsed-opts)
-      (println (error-msg (:errors parsed-opts)))
+      (println (usage (:summary parsed-opts)))
+      errors
+      (println (error-msg errors))
       :else
       (classpath-string->jar
         (tools.deps/make-classpath
