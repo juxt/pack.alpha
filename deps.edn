@@ -2,4 +2,5 @@
  :deps {org.clojure/tools.deps.alpha {:mvn/version "0.5.351"}
         me.raynes/fs {:mvn/version "1.4.6"}
         co.paralleluniverse/capsule {:mvn/version "1.0.3"}
-        org.clojure/tools.cli {:mvn/version "0.3.5"}}}
+        org.clojure/tools.cli {:mvn/version "0.3.5"}
+        rewrite-clj {:mvn/version "0.6.0"}}}
