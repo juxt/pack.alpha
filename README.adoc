@@ -4,13 +4,28 @@ Package up Clojure projects in various ways, based on a deps.edn file.
 
 == Usage
 
+=== Auto-add to project
+
+Pack can add itself to your deps.edn automatically.
+It will not modify your indentation style at all.
+This is alpha, but so is everything else in this project.
+
+NOTE: This isn't infallible.  Please let me know if I break your indentation.
+
+[source,clojure]
+----
+clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "90e67152ddfdf593cb9371b75ec2e367c861dbaf"}}}' -m mach.pack.alpha.inject a290401920635e1b360193161e6bf4bee68b93fc
+----
+
+The following examples assume you have run this.
+
 === Lambda
 
 The lambda approach will generate a zip which can be uploaded to AWS.
 
 [source,clojure]
 ----
-clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.aws-lambda deps.edn lambda.zip build_dir
+clj -A:pack mach.pack.alpha.aws-lambda deps.edn lambda.zip build_dir
 ----
 
 In this example:
@@ -25,7 +40,7 @@ In this example:
 
 [source,clojure]
 ----
-$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "a290401920635e1b360193161e6bf4bee68b93fc"}}}' -m mach.pack.alpha.capsule -O uberjar.jar -e build-dir --application-id mycoolapp --application-version "$(git describe)" -m myapp.main
+$ clj -A:pack mach.pack.alpha.capsule -O uberjar.jar -e build-dir --application-id mycoolapp --application-version "$(git describe)" -m myapp.main
 $ java -jar uberjar.jar
 ----
 
@@ -53,7 +68,7 @@ WARNING: jcl is based on link:http://www.jdotsoft.com/JarClassLoader.php[Jar Cla
 
 [source,clojure]
 ----
-$ clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "eed89476315661e2389d5d078ec17375bec3efa5"}}}' -m mach.pack.alpha.jcl deps.edn uberjar.jar build_dir
+$ clj -A:pack mach.pack.alpha.jcl deps.edn uberjar.jar build_dir
 $ java -jar uberjar.jar -m myapp.main
 ----
 
