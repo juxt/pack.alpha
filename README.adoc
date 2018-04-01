@@ -65,21 +65,3 @@ In this example:
 
 The jar's entrypoint is set to clojure.main, and therefore the jar takes all of the same options as clojure.main.
 
-== Building
-
-Run clj to update the pom.xml
-
-----
-$ clj -Spom
-----
-
-Remove the `<sourceDirectory>` tag from the pom.xml.
-
-Then use maven as normal:
-
-----
-$ mvn install
-$ mvn deploy
-----
-
-to install locally.
