@@ -46,13 +46,14 @@ $ java -jar uberjar.jar
 
 [source]
 ----
-  -d, --deps STRING                 deps.edn  deps.edn file location
-  -O, --output STRING                         output jar location
-  -e, --extra-path STRING                     add directory to classpath for building
-  -h, --help                                  show this help
+Usage: clj -m mach.pack.alpha.capsule [options] <path/to/output.jar>
+Options:
   -m, --main SYMBOL                           main namespace
-      --application-id STRING                 globally unique name for application, used for caching.
-      --application-version STRING            unique version for this uberjar, used for caching.
+      --application-id STRING                 globally unique name for application, used for caching
+      --application-version STRING            unique version for this uberjar, used for caching
+  -e, --extra-path STRING                     add directory to classpath for building
+  -d, --deps STRING                 deps.edn  deps.edn file location
+  -h, --help                                  show this help
 ----
 
 The main *does not* need `:gen-class`, it follows the same semantics as clojure.main's `-m main`.
