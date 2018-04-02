@@ -81,6 +81,12 @@
         (z/down)
         (z/rightmost))))
 
+(defn add-default-kv
+  [zloc k default-v]
+  (if-let [k* (find-key zloc k)]
+    zloc
+    (-> zloc (add-kv k default-v))))
+
 ;; Attempt to find alias based on the :git/url within
 (defn find-or-create-pack-alias
   [zloc]
@@ -110,12 +116,12 @@
       ;; Add pack dependency
       (find-or-create 'pack/pack.alpha {})
 
-      (add-kv :git/url "https://github.com/juxt/pack.alpha.git")
+      (add-default-kv :git/url "https://github.com/juxt/pack.alpha.git")
       (add-kv :sha sha)
       (z/up) ;; into extra-deps value
       (z/up) ;; into aliases value
 
-      (add-kv :main-opts ["-m"])))
+      (add-default-kv :main-opts ["-m"])))
 
 (comment
   (-> (z/of-file "deps.edn" {:track-position? true})
