@@ -81,14 +81,28 @@
         (z/down)
         (z/rightmost))))
 
+;; Attempt to find alias based on the :git/url within
+(defn find-or-create-pack-alias
+  [zloc]
+  (if-let [existing-alias (z/find-depth-first
+                            zloc
+                            #(some->>
+                               %
+                               z/sexpr
+                               :git/url
+                               (re-matches #".*github.com/juxt/pack.alpha.*")))]
+    (-> existing-alias z/up z/up)
+    (-> zloc
+        ;; Add aliases key
+        (find-or-create :aliases {})
+
+        ;; Add pack key
+        (find-or-create :pack {}))))
+
 (defn inject-pack
   [zloc sha]
   (-> zloc
-      ;; Add aliases key
-      (find-or-create :aliases {})
-
-      ;; Add pack key
-      (find-or-create :pack {})
+      (find-or-create-pack-alias)
 
       ;; Add extra-deps
       (find-or-create :extra-deps {})
