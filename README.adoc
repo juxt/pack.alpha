@@ -64,19 +64,4 @@ INFO: In the future I will extend Capsule support to include capsule-specific fe
 
 ==== jdsoft JarClassLoader
 
-WARNING: jcl is based on link:http://www.jdotsoft.com/JarClassLoader.php[Jar Class Loader] which is licensed under GPLv3.
-
-[source,clojure]
-----
-$ clj -A:pack mach.pack.alpha.jcl deps.edn uberjar.jar build_dir
-$ java -jar uberjar.jar -m myapp.main
-----
-
-In this example:
-
-* `deps.edn` is the location of the deps.edn to consume.
-* uberjar.jar is the resulting jar name
-* build_dir is a directory containing extra paths to add, for example it may be where you compile classes to, or write built css to.
-
-The jar's entrypoint is set to clojure.main, and therefore the jar takes all of the same options as clojure.main.
-
+WARNING: This has been removed due to my own licensing concerns about co-locating the source with my own.
