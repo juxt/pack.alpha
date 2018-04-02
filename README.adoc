@@ -10,6 +10,8 @@ Pack can add itself to your deps.edn automatically.
 It will not modify your indentation style at all.
 This is alpha, but so is everything else in this project.
 
+It can be run at later times, in order to automatically bump the sha in your deps.edn.
+
 NOTE: This isn't infallible.  Please let me know if I break your indentation.
 
 [source,clojure]

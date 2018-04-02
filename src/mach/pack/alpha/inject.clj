@@ -6,12 +6,25 @@
     [rewrite-clj.zip :as z]
     [rewrite-clj.zip.whitespace :as z.whitespace]))
 
+(defn find-key
+  [zloc k]
+  (z/find-value (z/down zloc)
+                (comp z/right z/right)
+                k))
+
 ;; Add a key, inserting a newline if necessary
 ;; if not empty, will match the position of the current keys
 (defn add-key
   [zloc k]
-  (if (= (z/sexpr zloc) {})
-    (z/append-child zloc k)
+  (cond
+    (= (z/sexpr zloc) {})
+    (-> zloc
+        (z/append-child k))
+
+    (find-key zloc k)
+    zloc
+
+    :else
     (let [first-k-x (some-> zloc z/down z/position second)]
       (-> zloc
           (z/down)
@@ -35,11 +48,20 @@
 
 (defn add-value
   [zloc v]
-  (if (not (-> zloc z/down z/right)) ;; <-- only 1 key inside
-    (z/append-child zloc v)
-    (let [first-k (-> zloc z/down z/leftmost)
-          sep (separator first-k)]
-      (z/append-child (reduce cz/append-child zloc sep) v))))
+  (let [first-k (-> zloc z/leftmost)
+        sep (separator first-k)
+        existing-v (z/right zloc)]
+   (if existing-v
+    (z/replace (z/right zloc) v)
+    (z/insert-right (reduce (comp cz/right cz/insert-right) zloc sep) v))))
+
+(defn add-kv
+  [zloc k v]
+  (-> zloc
+      (add-key k)
+      (find-key k)
+      (add-value v)
+      z/up))
 
 ;; enter just-added value of map
 (defn added-value
@@ -48,47 +70,42 @@
       z/down
       z/rightmost))
 
-(defn find-or-create-aliases
-  [zloc]
-  (if-let [aliases (z/find-value (z/down zloc) :aliases)]
-    (-> aliases z/right)
+;; Find or create key, return location of the value of that k
+(defn find-or-create
+  [zloc k default-v]
+  (if-let [k* (find-key zloc k)]
+    (z/right k*)
     (-> zloc
-        (add-key :aliases)
-        (add-value {})
-        (added-value))))
+        (add-kv k default-v)
+        ;; New keys always are added at the end
+        (z/down)
+        (z/rightmost))))
 
 (defn inject-pack
   [zloc sha]
   (-> zloc
-      (find-or-create-aliases)
+      ;; Add aliases key
+      (find-or-create :aliases {})
 
       ;; Add pack key
-      (add-key :pack)
-      (add-value {})
-
-      ;; Go to the pack alias
-      (added-value)
+      (find-or-create :pack {})
 
       ;; Add extra-deps
-      (add-key :extra-deps)
-      (add-value {}) ;; Don't add directly, needs whitespace manipulation
-      (added-value)
-      (add-key 'pack/pack.alpha)
-      (add-value {})
-      (added-value)
-      (add-key :git/url)
-      (add-value "https://github.com/juxt/pack.alpha.git")
-      (add-key :sha)
-      (add-value sha)
+      (find-or-create :extra-deps {})
+
+      ;; Add pack dependency
+      (find-or-create 'pack/pack.alpha {})
+
+      (add-kv :git/url "https://github.com/juxt/pack.alpha.git")
+      (add-kv :sha sha)
       (z/up) ;; into extra-deps value
       (z/up) ;; into aliases value
 
-      (add-key :main-opts)
-      (z/append-child ["-m"])))
+      (add-kv :main-opts ["-m"])))
 
 (comment
   (-> (z/of-file "deps.edn" {:track-position? true})
-      (inject-pack)
+      (inject-pack "somesha")
       (z/->root-string)))
 
 (defn -main
