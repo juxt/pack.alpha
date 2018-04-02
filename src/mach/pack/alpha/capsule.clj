@@ -84,8 +84,7 @@
     :assoc-fn (fn [m k v] (update m k conj v))]
    ["-d" "--deps STRING" "deps.edn file location"
     :default "deps.edn"
-    :parse-fn io/file
-    :validate [(memfn exists) "deps.edn file must exist"]]
+    :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
    ["-h" "--help" "show this help"]])
 
 (defn- usage
@@ -110,7 +109,6 @@
 (defn -main
   [& args]
   (let [{{:keys [deps
-                 output
                  extra-path
                  main
                  application-id
@@ -119,7 +117,6 @@
          [output] :arguments
          :as parsed-opts}
         (cli/parse-opts args cli-options)
-        deps-map (tools.deps.reader/slurp-deps (io/file deps))
         errors (cond-> (:errors parsed-opts)
                  (not output)
                  (conj "Output jar must be specified"))]
@@ -129,15 +126,16 @@
       errors
       (println (error-msg errors))
       :else
-      (classpath-string->jar
-        (tools.deps/make-classpath
-          (tools.deps/resolve-deps deps-map nil)
-          (map
-            #(.resolveSibling (paths-get [deps])
-                              (paths-get [%]))
-            (:paths deps-map))
-          {:extra-paths extra-path})
-        output
-        application-id
-        application-version
-        main))))
+      (let [deps-map (tools.deps.reader/slurp-deps (io/file deps))]
+        (classpath-string->jar
+          (tools.deps/make-classpath
+            (tools.deps/resolve-deps deps-map nil)
+            (map
+              #(.resolveSibling (paths-get [deps])
+                                (paths-get [%]))
+              (:paths deps-map))
+            {:extra-paths extra-path})
+          output
+          application-id
+          application-version
+          main)))))
