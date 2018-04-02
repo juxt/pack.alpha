@@ -2,6 +2,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.string :as string]
+   [clojure.tools.cli :as cli]
    [clojure.tools.deps.alpha :as tools.deps]
    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
    [clojure.tools.deps.alpha.script.make-classpath]
@@ -143,19 +144,53 @@
   [[first & more]]
   (Paths/get first (into-array String more)))
 
+(def ^:private cli-options
+  [["-e" "--extra-path STRING" "add directory to classpath for building"
+    :assoc-fn (fn [m k v] (update m k conj v))]
+   ["-d" "--deps STRING" "deps.edn file location"
+    :default "deps.edn"
+    :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
+   ["-h" "--help" "show this help"]])
+
+(defn- usage
+  [summary]
+  (->>
+    ["Usage: clj -m mach.pack.alpha.one-jar [options] <path/to/output.jar>"
+     ""
+     "Options:"
+     summary
+     ""
+     "output.jar is where to put the output uberjar. Leading directories will be created."]
+    (string/join \newline)))
+
+(defn- error-msg [errors]
+  (str "The following errors occurred while parsing your command:\n\n"
+       (string/join \newline errors)))
+
 (defn -main
   [& args]
-  (let [[deps-edn jar-location build-dir] args
-        deps-map (tools.deps.reader/slurp-deps
-                   (io/file deps-edn))]
-    (classpath-string->jar
-      (tools.deps/make-classpath
-        (tools.deps/resolve-deps deps-map nil)
-        (conj
-          (map
-            #(.resolveSibling (paths-get [deps-edn])
-                              (paths-get [%]))
-            (:paths deps-map))
-          build-dir)
-        nil)
-      jar-location)))
+  (let [{{:keys [deps
+                 extra-path
+                 help]} :options
+         [output] :arguments
+         :as parsed-opts}
+        (cli/parse-opts args cli-options)
+        errors (cond-> (:errors parsed-opts)
+                 (not output)
+                 (conj "Output jar must be specified"))]
+    (cond
+      help
+      (println (usage (:summary parsed-opts)))
+      errors
+      (println (error-msg errors))
+      :else
+      (let [deps-map (tools.deps.reader/slurp-deps (io/file deps))]
+        (classpath-string->jar
+          (tools.deps/make-classpath
+            (tools.deps/resolve-deps deps-map nil)
+            (map
+              #(.resolveSibling (paths-get [deps])
+                                (paths-get [%]))
+              (:paths deps-map))
+            {:extra-paths extra-path})
+          output)))))

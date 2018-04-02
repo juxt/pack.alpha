@@ -69,10 +69,24 @@ link:http://one-jar.sourceforge.net/[OneJAR] builder.
 This is a suitable replacement for jdsoft JCL, without the GPL license.
 It's especially practical where you can't extract into a `~/.capsule` directory, or don't need to bake in JVM args.
 
-[source,clojure]
+[source]
 ----
-$ clj -A:pack mach.pack.alpha.one-jar deps.edn output.jar [<build-dir>]
-$ java -jar uberjar.jar
+Usage: clj -m mach.pack.alpha.one-jar [options] <path/to/output.jar>
+
+Options:
+  -e, --extra-path STRING            add directory to classpath for building
+  -d, --deps STRING        deps.edn  deps.edn file location
+  -h, --help                         show this help
+
+output.jar is where to put the output uberjar. Leading directories will be created.
+----
+
+Example:
+
+[source,bash]
+----
+$ clj -A:pack mach.pack.alpha.one-jar output.jar
+$ java -jar output.jar
 ----
 
 ==== jdsoft JarClassLoader
