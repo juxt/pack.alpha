@@ -90,7 +90,7 @@
                                %
                                z/sexpr
                                :git/url
-                               (re-matches #".*github.com/juxt/pack.alpha.*")))]
+                               (re-matches #".*github.com[/:]juxt/pack.alpha.*")))]
     (-> existing-alias z/up z/up)
     (-> zloc
         ;; Add aliases key
