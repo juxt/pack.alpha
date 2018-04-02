@@ -17,7 +17,7 @@ NOTE: This isn't infallible.  Please let me know if I break your indentation.
 
 [source,clojure]
 ----
-clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "253173cfb38e16cb7a49c5686f98bb4711fd5a13"}}}' -m mach.pack.alpha.inject 7f46098598f70da960264d6e33e3aed7a107e1bc
+clj -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "dccf2134bcf03726a9465d2b9997c42e5cd91bff"}}}' -m mach.pack.alpha.inject 7f46098598f70da960264d6e33e3aed7a107e1bc
 ----
 
 The following examples assume you have run this.
