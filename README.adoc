@@ -63,7 +63,7 @@ It can be used multiple times.
 
 INFO: In the future I will extend Capsule support to include capsule-specific features, such as caplets and many of the related manifest attributes.
 
-=== OneJAR
+==== OneJAR
 
 link:http://one-jar.sourceforge.net/[OneJAR] builder.
 This is a suitable replacement for jdsoft JCL, without the GPL license.
