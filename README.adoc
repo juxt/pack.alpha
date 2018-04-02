@@ -62,6 +62,18 @@ It can be used multiple times.
 
 INFO: In the future I will extend Capsule support to include capsule-specific features, such as caplets and many of the related manifest attributes.
 
+=== OneJAR
+
+link:http://one-jar.sourceforge.net/[OneJAR] builder.
+This is a suitable replacement for jdsoft JCL, without the GPL license.
+It's especially practical where you can't extract into a `~/.capsule` directory, or don't need to bake in JVM args.
+
+[source,clojure]
+----
+$ clj -A:pack mach.pack.alpha.one-jar deps.edn output.jar [<build-dir>]
+$ java -jar uberjar.jar
+----
+
 ==== jdsoft JarClassLoader
 
 WARNING: This has been removed due to my own licensing concerns about co-locating the source with my own.
