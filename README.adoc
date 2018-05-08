@@ -43,7 +43,7 @@ In this example:
 
 [source,clojure]
 ----
-$ clj -A:pack mach.pack.alpha.capsule -O uberjar.jar -e build-dir --application-id mycoolapp --application-version "$(git describe)" -m myapp.main
+$ clj -A:pack mach.pack.alpha.capsule uberjar.jar -e build-dir --application-id mycoolapp --application-version "$(git describe)" -m myapp.main
 $ java -jar uberjar.jar
 ----
 
