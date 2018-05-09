@@ -49,7 +49,7 @@
                   (filter (memfn isFile))
                   (filter #(by-ext % "jar"))
                   (map (juxt #(elodin/path-seq->str
-                                (cons "lib" (elodin/hash-derived-name)))
+                                (cons "lib" (elodin/hash-derived-name %)))
                              identity)))
                 classpath)))))
 
