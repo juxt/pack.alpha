@@ -41,7 +41,7 @@
   (Paths/get first (into-array String more)))
 
 (defn classpath-string->jar
-  [classpath-string jar-location application-id application-version main]
+  [classpath-string jar-location manifest]
   (let [classpath
         (map io/file (split-classpath-string classpath-string))]
     (spit-jar!
@@ -67,12 +67,7 @@
                              io/file)))
                 classpath)
               [["Capsule.class" (io/resource "Capsule.class")]])
-      (cond->
-        [["Application-Class" "clojure.main"]
-         ["Application-ID" application-id]
-         ["Application-Version" application-version]]
-        main
-        (conj ["Args" (str "-m " main)]))
+      manifest
       "Capsule")))
 
 (def ^:private cli-options
@@ -135,7 +130,11 @@
                                 (paths-get [%]))
               (:paths deps-map))
             {:extra-paths extra-path})
-          output
-          application-id
-          application-version
-          main)))))
+
+          (cond->
+              [["Application-Class" "clojure.main"]
+               ["Application-ID" application-id]
+               ["Application-Version" application-version]]
+            main
+            (conj ["Args" (str "-m " main)])))))))
+
