@@ -130,7 +130,7 @@
                                 (paths-get [%]))
               (:paths deps-map))
             {:extra-paths extra-path})
-
+          output
           (cond->
               [["Application-Class" "clojure.main"]
                ["Application-ID" application-id]
