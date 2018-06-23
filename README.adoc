@@ -39,7 +39,14 @@ In this example:
 
 === Uberjar
 
+"Uberjar-ing" consists of packaging you application into one all-encompassing JAR (Java ARchive) file, called an "Uberjar",
+ which can then be executed using `java -jar myapp.jar ARG1 ARG2 ARG3...`.
+
+Pack provides several approaches for creating an Uberjar:
+
 ==== Capsule
+
+This consists of building an Uberjar using http://www.capsule.io/[Parallel Universe's Capsule].
 
 [source,clojure]
 ----
@@ -63,6 +70,23 @@ The main *does not* need `:gen-class`, it follows the same semantics as clojure.
 If main is not specified, it will default to `clojure.main`, meaning it can take options like `-m` or `-r`.
 `extra-path` is useful for adding clojurescript & css to the resulting jar.
 It can be used multiple times.
+
+[CAUTION]
+.Executing a Capsule JAR with JVM args / System Properties
+====
+As mentioned in the http://www.capsule.io/user-guide/#the-capsule-execution-process[Capsule docs],
+ when you execute a Capsule-packaged Uberjar, 2 Java processes are actually run: the Capsule launcher, and your application process.
+
+In particular, JVM args and System Properties passed to the `java` command will apply to both processes, which if
+ you're not careful can result in waste of resources and collisions; for example:
+
+* If you pass the `-Xms2g` JVM arg, you've just allocated 2 Gigabytes of unnecessary RAM for the Capsule launcher
+* If you pass the `-Dcom.sun.management.jmxremote.port=7091` System Property you will get an error,
+as both Java processes try to use the `7091` port for JMX.
+
+The way to prevent this is too pass special options that will only apply to the application process:
+ see the http://www.capsule.io/user-guide/#jvm-arguments-system-properties-environment-variables-and-agents[related Capsule documentation].
+====
 
 INFO: In the future I will extend Capsule support to include capsule-specific features, such as caplets and many of the related manifest attributes.
 
