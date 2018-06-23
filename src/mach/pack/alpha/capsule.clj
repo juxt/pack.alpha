@@ -70,16 +70,32 @@
       manifest
       "Capsule")))
 
+(def manifest-header-pattern
+  ;; see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html
+  ;; NOTE: we're being slightly more liberal than the spec, which is OK since
+  ;; we're only interested in breaking the supplied Manifest entry into a [name value] pair;
+  ;; further validation will happen downstream at the java.util.jar/Manifest level. (Valentin Waeselynck, 23 Jun 2018)
+  #"([a-zA-Z0-9_\-]+):\s(.*)")
+
 (def ^:private cli-options
   [["-m" "--main SYMBOL" "main namespace"
     :parse-fn symbol]
    [nil "--application-id STRING" "globally unique name for application, used for caching"]
    [nil "--application-version STRING" "unique version for this uberjar, used for caching"]
+   [nil "--system-properties STRING" "space-separated list of propName=value pairs, specifying JVM System Properties which will be passed to the application. Maps to the 'System-Properties' entry in the Capsule Manifest."]
+   [nil "--jvm-args STRING" "space-separated list of JVM argument that will be used to launch the application (e.g \"-server -Xms200m -Xmx600m\"). Maps to the 'JVM-Args' entry in the Capsule Manifest."]
    ["-e" "--extra-path STRING" "add directory to classpath for building"
     :assoc-fn (fn [m k v] (update m k conj v))]
    ["-d" "--deps STRING" "deps.edn file location"
     :default "deps.edn"
     :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
+   ["-M" "--manifest-entry STRING"
+    "a \"Key: Value\" pair that will be appended to the Capsule Manifest; useful for conveying arbitrary Manifest entries to the Capsule Manifest. Can be repeated to supply several entries."
+    :validate [(fn [arg] (re-matches manifest-header-pattern arg))
+               "Manifest Entry must be of the form \"Name: Value\" (whitespace matters)"]
+    :assoc-fn (fn [m opt arg]
+                (let [[_ k v] (re-matches manifest-header-pattern arg)]
+                  (update m opt #(-> % (or []) (conj [k v])))))]
    ["-h" "--help" "show this help"]])
 
 (defn- usage
@@ -108,6 +124,9 @@
                  main
                  application-id
                  application-version
+                 manifest-entry
+                 system-properties
+                 jvm-args
                  help]} :options
          [output] :arguments
          :as parsed-opts}
@@ -135,6 +154,12 @@
               [["Application-Class" "clojure.main"]
                ["Application-ID" application-id]
                ["Application-Version" application-version]]
+            system-properties
+            (conj ["System-Properties" system-properties])
+            jvm-args
+            (conj ["JVM-Args" jvm-args])
             main
-            (conj ["Args" (str "-m " main)])))))))
+            (conj ["Args" (str "-m " main)])
+            true
+            (into manifest-entry)))))))
 
