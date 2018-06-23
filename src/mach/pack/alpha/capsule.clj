@@ -70,6 +70,13 @@
       manifest
       "Capsule")))
 
+(def manifest-header-pattern
+  ;; see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html
+  ;; NOTE: we're being slightly more liberal than the spec, which is OK since
+  ;; we're only interested in breaking the supplied Manifest entry into a [name value] pair;
+  ;; further validation will happen downstream at the java.util.jar/Manifest level. (Valentin Waeselynck, 23 Jun 2018)
+  #"([a-zA-Z0-9_\-]+):\s(.*)")
+
 (def ^:private cli-options
   [["-m" "--main SYMBOL" "main namespace"
     :parse-fn symbol]
@@ -82,6 +89,13 @@
    ["-d" "--deps STRING" "deps.edn file location"
     :default "deps.edn"
     :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
+   ["-M" "--manifest-entry STRING"
+    "a \"Key: Value\" pair that will be appended to the Capsule Manifest; useful for conveying arbitrary Manifest entries to the Capsule Manifest. Can be repeated to supply several entries."
+    :validate [(fn [arg] (re-matches manifest-header-pattern arg))
+               "Manifest Entry must be of the form \"Name: Value\" (whitespace matters)"]
+    :assoc-fn (fn [m opt arg]
+                (let [[_ k v] (re-matches manifest-header-pattern arg)]
+                  (update m opt #(-> % (or []) (conj [k v])))))]
    ["-h" "--help" "show this help"]])
 
 (defn- usage
@@ -112,6 +126,7 @@
                  application-version
                  system-properties
                  jvm-args
+                 manifest-entry
                  help]} :options
          [output] :arguments
          :as parsed-opts}
@@ -144,5 +159,7 @@
             jvm-args
             (conj ["JVM-Args" jvm-args])
             main
-            (conj ["Args" (str "-m " main)])))))))
+            (conj ["Args" (str "-m " main)])
+            true
+            (into manifest-entry)))))))
 

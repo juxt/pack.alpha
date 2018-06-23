@@ -50,7 +50,6 @@ $ java -jar uberjar.jar
 [source]
 ----
 Usage: clj -m mach.pack.alpha.capsule [options] <path/to/output.jar>
-Options:
   -m, --main SYMBOL                           main namespace
       --application-id STRING                 globally unique name for application, used for caching
       --application-version STRING            unique version for this uberjar, used for caching
@@ -58,6 +57,7 @@ Options:
       --jvm-args STRING                       space-separated list of JVM argument that will be used to launch the application (e.g "-server -Xms200m -Xmx600m"). Maps to the 'JVM-Args' entry in the Capsule Manifest.
   -e, --extra-path STRING                     add directory to classpath for building
   -d, --deps STRING                 deps.edn  deps.edn file location
+  -M, --manifest-entry STRING                 a "Key: Value" pair that will be appended to the Capsule Manifest; useful for conveying arbitrary Manifest entries to the Capsule Manifest. Can be repeated to supply several entries.
   -h, --help                                  show this help
 ----
 
