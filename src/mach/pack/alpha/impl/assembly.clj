@@ -57,22 +57,30 @@
   (doto (JarEntry. (str (.replaceAll path "\\\\" "/") (when dir? "/")))
     (.setTime (last-modified f))))
 
-(defn spit-jar! [jarpath files attr main]
-  (let [manifest  (create-manifest main attr)
-        jarfile   (io/file jarpath)
-        dirs      (atom #{})
-        parents*  #(iterate (comp (memfn getParent) io/file) %)
-        parents   #(->> % parents* (drop 1)
-                        (take-while (complement empty?))
-                        (remove (partial contains? @dirs)))]
+(defn spit-jar!
+  [jarpath files attr main]
+  (let [manifest (create-manifest main attr)
+        jarfile (io/file jarpath)
+        dirs (atom #{})
+        parents* #(iterate (comp (memfn getParent) io/file) %)
+        parents #(->> %
+                      parents*
+                      (drop 1)
+                      (take-while (complement empty?))
+                      (remove (partial contains? @dirs)))]
     (io/make-parents jarfile)
     (with-open [s (JarOutputStream. (io/output-stream jarfile) manifest)]
       (doseq [[jarpath srcpath] files]
         (let [e (jarentry jarpath srcpath)]
-          (try
-            (doseq [d (parents jarpath) :let [f (io/file d)]]
-              (swap! dirs conj d)
-              (doto s (.putNextEntry (jarentry d f true)) .closeEntry))
-            (doto s (.putNextEntry e) (write! (io/input-stream srcpath)) .closeEntry)
-            (catch Throwable t
-              (if-not (dupe? t) (throw t) (println " warning: %s\n" (.getMessage t))))))))))
+          (try (doseq [d (parents jarpath)
+                       :let [f (io/file d)]]
+                 (swap! dirs conj d)
+                 (doto s (.putNextEntry (jarentry d f true)) .closeEntry))
+               (doto s
+                 (.putNextEntry e)
+                 (write! (io/input-stream srcpath))
+                 .closeEntry)
+               (catch Throwable t
+                 (if-not (dupe? t)
+                   (throw t)
+                   (println " warning: %s\n" (.getMessage t))))))))))
