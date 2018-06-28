@@ -5,7 +5,7 @@
   (:require
    [clojure.java.io :as io])
   (:import
-    [java.nio.file Files Paths]))
+   [java.nio.file Files Paths]))
 
 (defn- signature
   [algorithm]
@@ -38,13 +38,24 @@
   [path-seq]
   (str (paths-get path-seq)))
 
+(defn path->path-seq
+  [path]
+  (->> path
+       .iterator
+       iterator-seq
+       (map str)))
+
 (defn file->path-seq
   [file]
-  (->> file
+  (->> (io/file file)
        .toPath
        .iterator
        iterator-seq
        (map str)))
+
+(defn str->path
+  [pstr]
+  (.toPath (io/file pstr)))
 
 (defn full-path-derived-name
   [file]

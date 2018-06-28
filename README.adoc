@@ -117,3 +117,12 @@ $ java -jar output.jar
 ==== jdsoft JarClassLoader
 
 WARNING: This has been removed due to my own licensing concerns about co-locating the source with my own.
+
+=== Skinny JAR
+
+[source,clojure]
+.Example
+----
+$ clj -A:pack mach.pack.alpha.skinny
+$ java -cp "target/app.jar:target/lib/*" clojure.main
+----
