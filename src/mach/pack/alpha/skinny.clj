@@ -39,10 +39,10 @@
                       (concat
                        lib-dir
                        [(str (namespace lib-name)
-                             ":"
+                             "__"
                              (name lib-name)
                              (when-let [v ((some-fn :mvn/version :sha) lib)]
-                               (str ":" v))
+                               (str "__" v))
                              (when (= input-type :dir)
                                (str "-"
                                     (string/join
