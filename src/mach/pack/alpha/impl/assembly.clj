@@ -58,8 +58,9 @@
     (.setTime (last-modified f))))
 
 (defn spit-jar!
-  [jarpath files attr main]
-  (let [manifest (create-manifest main attr)
+  [jarpath files & [attr main]]
+  (let [manifest (when (or (seq attr) main)
+                   (create-manifest main attr))
         jarfile (io/file jarpath)
         dirs (atom #{})
         parents* #(iterate (comp (memfn getParent) io/file) %)
@@ -69,7 +70,9 @@
                       (take-while (complement empty?))
                       (remove (partial contains? @dirs)))]
     (io/make-parents jarfile)
-    (with-open [s (JarOutputStream. (io/output-stream jarfile) manifest)]
+    (with-open [s (if manifest
+                    (JarOutputStream. (io/output-stream jarfile) manifest)
+                    (JarOutputStream. (io/output-stream jarfile)))]
       (doseq [[jarpath srcpath] files]
         (let [e (jarentry jarpath srcpath)]
           (try (doseq [d (parents jarpath)
