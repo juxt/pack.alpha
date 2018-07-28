@@ -47,11 +47,13 @@
 
 (defn file->path-seq
   [file]
-  (->> (io/file file)
-       .toPath
-       .iterator
-       iterator-seq
-       (map str)))
+  (let [p (.toPath (io/file file))]
+    (concat
+      (some-> (.getRoot p) str vector)
+      (->> p
+           .iterator
+           iterator-seq
+           (map str)))))
 
 (defn str->path
   [pstr]
