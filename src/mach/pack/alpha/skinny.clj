@@ -47,11 +47,10 @@
                              (when (= input-type :dir)
                                (str "-"
                                     (string/join
-                                     "-"
-                                     (elodin/path->path-seq
-                                      (.relativize (elodin/str->path (:deps/root
-                                                                      lib))
-                                                   (elodin/str->path path))))))
+                                      "-"
+                                      (elodin/path->path-seq
+                                        (.relativize (elodin/str->abs-path (:deps/root lib))
+                                                     (elodin/str->path path))))))
                              (when (= output-type :jar)
                                ;; No suffix, just presume that
                                ;; there's only ever one jar.

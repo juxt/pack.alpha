@@ -57,6 +57,10 @@
   [pstr]
   (.toPath (io/file pstr)))
 
+(defn str->abs-path
+  [pstr]
+  (.toPath (.getCanonicalFile (io/file pstr))))
+
 (defn full-path-derived-name
   [file]
   (file->path-seq file))
