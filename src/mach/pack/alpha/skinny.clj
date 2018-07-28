@@ -60,7 +60,7 @@
       (:paths lib)))
 
 (defn project-paths->steps
- [paths {:keys [output-components output-target] :as project-config}]
+ [paths path-root {:keys [output-components output-target] :as project-config}]
  (case output-target
    :jar [{:input {:paths paths :type :dir}
           :output {:components output-components :type output-target}}]
@@ -71,7 +71,9 @@
                            (concat #_(butlast output-components)
                                    #_[(str (last output-components) "-" path)]
                                    output-components
-                                   [path])
+                                   [(str
+                                      (.relativize (elodin/str->abs-path path-root)
+                                                   (elodin/str->abs-path path)))])
                          :type output-target}})
              paths)))
 
@@ -82,9 +84,10 @@
    (concat
     (when project-config
       (project-paths->steps
-       (concat (map #(.getAbsolutePath (io/file path-root %)) (:paths deps-edn))
-               extra-paths)
-       project-config))
+        (concat (map #(.getAbsolutePath (io/file path-root %)) (:paths deps-edn))
+                extra-paths)
+        path-root
+        project-config))
     (when lib-config
       (let [lib-map (resolve-deps-f deps-f)]
         (mapcat (fn [[n lib]] (lib->steps n lib lib-config)) lib-map))))))
