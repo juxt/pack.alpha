@@ -195,11 +195,11 @@
       :else
       (run-steps
         (deps-f->steps deps extra-path
-                         (when-not no-project
-                           {:output-components (elodin/file->path-seq project-path)
-                            :output-target (case (fs/extension project-path)
-                                             nil :dir
-                                             ".jar" :jar)})
-                         (when-not no-libs
-                           {:lib-dir (elodin/file->path-seq lib-dir)
-                            :output-target lib-type}))))))
+                       (when-not no-project
+                         {:output-components (elodin/file->path-seq project-path)
+                          :output-target (case (fs/extension project-path)
+                                           nil :dir
+                                           ".jar" :jar)})
+                       (when-not no-libs
+                         {:lib-dir (elodin/file->path-seq lib-dir)
+                          :output-target lib-type}))))))
