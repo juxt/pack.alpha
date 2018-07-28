@@ -79,8 +79,7 @@
 (defn deps-f->steps
  [deps-f extra-paths project-config lib-config]
  (let [deps-edn (slurp-deps deps-f)
-       path-root (fs/parent deps-f)
-       lib-map (tools.deps/resolve-deps (slurp-deps deps-f) nil)]
+       path-root (fs/parent deps-f)]
    (concat
     (when project-config
       (project-paths->steps
