@@ -71,6 +71,10 @@
       manifest
       "Capsule")))
 
+(defn merge-aliases [deps-map aliases]
+  (let [alias-keys (map #(keyword (str ":" %)) (string/split aliases #":"))]
+    alias-keys))
+
 (def manifest-header-pattern
   ;; see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html
   ;; NOTE: we're being slightly more liberal than the spec, which is OK since
@@ -144,7 +148,7 @@
       (println (error-msg errors))
       :else
       (let [deps-map (tools.deps.reader/slurp-deps (io/file deps))]
-        (pprint deps-map)
+        (pprint (merge-aliases deps-map alias))
         (classpath-string->jar
           (tools.deps/make-classpath
             (tools.deps/resolve-deps deps-map nil)
