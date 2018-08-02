@@ -8,6 +8,7 @@
    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
    [mach.pack.alpha.impl.elodin :as elodin]
+   [clojure.pprint :refer [pprint]]
    [me.raynes.fs :as fs])
   (:import
    java.io.File
@@ -89,6 +90,7 @@
    ["-d" "--deps STRING" "deps.edn file location"
     :default "deps.edn"
     :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
+   ["-a" "--alias" "Aliases to use for determining extra dependencies"]
    ["-M" "--manifest-entry STRING"
     "a \"Key: Value\" pair that will be appended to the Capsule Manifest; useful for conveying arbitrary Manifest entries to the Capsule Manifest. Can be repeated to supply several entries."
     :validate [(fn [arg] (re-matches manifest-header-pattern arg))
@@ -120,6 +122,7 @@
 (defn -main
   [& args]
   (let [{{:keys [deps
+                 alias
                  extra-path
                  main
                  application-id
@@ -141,6 +144,7 @@
       (println (error-msg errors))
       :else
       (let [deps-map (tools.deps.reader/slurp-deps (io/file deps))]
+        (pprint deps-map)
         (classpath-string->jar
           (tools.deps/make-classpath
             (tools.deps/resolve-deps deps-map nil)
