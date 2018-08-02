@@ -72,8 +72,8 @@
       "Capsule")))
 
 (defn merge-aliases [deps-map aliases]
-  (let [alias-keys (map #(keyword (str ":" %)) (string/split aliases #":"))]
-    alias-keys))
+  (reduce (fn [m k]
+            (merge m (get-in deps-map [:aliases k]))) nil aliases))
 
 (def manifest-header-pattern
   ;; see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html
@@ -94,7 +94,10 @@
    ["-d" "--deps STRING" "deps.edn file location"
     :default "deps.edn"
     :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
-   ["-a" "--alias" "Aliases to use for determining extra dependencies"]
+   ["-a" "--alias STRING" "Aliases to use for determining extra dependencies"
+    :default ""
+    :assoc-fn (fn [m k v]
+                (assoc m k (map keyword (rest (string/split v #":")))))]
    ["-M" "--manifest-entry STRING"
     "a \"Key: Value\" pair that will be appended to the Capsule Manifest; useful for conveying arbitrary Manifest entries to the Capsule Manifest. Can be repeated to supply several entries."
     :validate [(fn [arg] (re-matches manifest-header-pattern arg))
@@ -147,16 +150,16 @@
       errors
       (println (error-msg errors))
       :else
-      (let [deps-map (tools.deps.reader/slurp-deps (io/file deps))]
-        (pprint (merge-aliases deps-map alias))
+      (let [deps-map (tools.deps.reader/slurp-deps (io/file deps))
+            resolve-args (merge-aliases deps-map (get-in parsed-opts [:options :alias]))]
         (classpath-string->jar
           (tools.deps/make-classpath
-            (tools.deps/resolve-deps deps-map nil)
-            (map
-              #(.resolveSibling (paths-get [deps])
-                                (paths-get [%]))
-              (:paths deps-map))
-            {:extra-paths extra-path})
+           (tools.deps/resolve-deps deps-map resolve-args)
+           (map
+            #(.resolveSibling (paths-get [deps])
+                              (paths-get [%]))
+            (:paths deps-map))
+           {:extra-paths extra-path})
           output
           (cond->
               [["Application-Class" "clojure.main"]
