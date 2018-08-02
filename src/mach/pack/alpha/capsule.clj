@@ -8,7 +8,6 @@
    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
    [mach.pack.alpha.impl.elodin :as elodin]
-   [clojure.pprint :refer [pprint]]
    [me.raynes.fs :as fs])
   (:import
    java.io.File
@@ -71,10 +70,6 @@
       manifest
       "Capsule")))
 
-(defn merge-aliases [deps-map aliases]
-  (reduce (fn [m k]
-            (merge m (get-in deps-map [:aliases k]))) nil aliases))
-
 (def manifest-header-pattern
   ;; see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html
   ;; NOTE: we're being slightly more liberal than the spec, which is OK since
@@ -94,7 +89,7 @@
    ["-d" "--deps STRING" "deps.edn file location"
     :default "deps.edn"
     :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
-   ["-a" "--alias STRING" "Aliases to use for determining extra dependencies"
+   ["-a" "--alias STRING" "Aliases to use for determining extra dependencies. E.g. -a :server:client/release"
     :default ""
     :assoc-fn (fn [m k v]
                 (assoc m k (map keyword (rest (string/split v #":")))))]
@@ -151,7 +146,9 @@
       (println (error-msg errors))
       :else
       (let [deps-map (tools.deps.reader/slurp-deps (io/file deps))
-            resolve-args (merge-aliases deps-map (get-in parsed-opts [:options :alias]))]
+            resolve-args (tools.deps/combine-aliases
+                          deps-map
+                          (get-in parsed-opts [:options :alias]))]
         (classpath-string->jar
           (tools.deps/make-classpath
            (tools.deps/resolve-deps deps-map resolve-args)
