@@ -1,0 +1,16 @@
+{
+  :paths ["src"]
+
+  :deps {
+    org.clojure/clojure {:mvn/version "1.9.0"}
+  }
+
+  :aliases {
+    :test {:extra-paths ["test"]}
+  }
+
+  :mvn/repos {
+    "central" {:url "https://repo1.maven.org/maven2/"}
+    "clojars" {:url "https://repo.clojars.org/"}
+  }
+}
