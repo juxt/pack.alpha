@@ -9,12 +9,15 @@
    [clojure.string :as string]
    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
    [mach.pack.alpha.impl.elodin :as elodin]
+   [mach.pack.alpha.impl.util :refer [system-edn]]
    [me.raynes.fs :as fs])
   (:import [java.nio.file Paths]))
 
 (defn slurp-deps
  [deps-f]
- (tools.deps.reader/slurp-deps (io/file deps-f)))
+ (tools.deps.reader/merge-deps
+   [(system-edn)
+    (tools.deps.reader/slurp-deps (io/file deps-f))]))
 
 (defn resolve-deps-f
  "Given the location of a deps.edn file, return the lib-map"

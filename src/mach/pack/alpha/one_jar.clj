@@ -8,6 +8,7 @@
    [clojure.tools.deps.alpha.script.make-classpath]
    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
    [mach.pack.alpha.impl.elodin :as elodin]
+   [mach.pack.alpha.impl.util :refer [system-edn]]
    [me.raynes.fs :as fs])
   (:import
    java.io.File
@@ -184,7 +185,9 @@
       errors
       (println (error-msg errors))
       :else
-      (let [deps-map (tools.deps.reader/slurp-deps (io/file deps))]
+      (let [deps-map (tools.deps.reader/merge-deps
+                       [(system-edn)
+                        (tools.deps.reader/slurp-deps (io/file deps))])]
         (classpath-string->jar
           (tools.deps/make-classpath
             (tools.deps/resolve-deps deps-map nil)

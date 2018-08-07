@@ -6,7 +6,8 @@
    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
    [clojure.tools.deps.alpha.script.make-classpath]
    [mach.pack.alpha.impl.assembly :refer [spit-zip!]]
-   [mach.pack.alpha.impl.elodin :as elodin])
+   [mach.pack.alpha.impl.elodin :as elodin]
+   [mach.pack.alpha.impl.util :refer [system-edn]])
   (:import
    java.io.File
    java.nio.file.Paths))
@@ -56,8 +57,9 @@
 (defn -main
   [& args]
   (let [[deps-edn jar-location build-dir] args
-        deps-map (tools.deps.reader/slurp-deps
-                   (io/file deps-edn))]
+        deps-map (tools.deps.reader/merge-deps
+                   [(system-edn)
+                    (tools.deps.reader/slurp-deps (io/file deps-edn))])]
     (classpath-string->zip
       (tools.deps/make-classpath
         (tools.deps/resolve-deps deps-map nil)
