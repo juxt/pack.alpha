@@ -86,4 +86,5 @@
                (catch Throwable t
                  (if-not (dupe? t)
                    (throw t)
-                   (println " warning: %s\n" (.getMessage t))))))))))
+                   (println (format " warning: %s\n"
+                                    (.getMessage t)))))))))))
