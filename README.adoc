@@ -126,3 +126,35 @@ WARNING: This has been removed due to my own licensing concerns about co-locatin
 $ clj -A:pack mach.pack.alpha.skinny
 $ java -cp "target/app.jar:target/lib/*" clojure.main
 ----
+
+==== Uploading to Clojars (or Maven)
+
+Using skinny jars, pack can be used to upload artifacts to Clojars.
+This example should be easily modified to work with Maven repositories too, but I haven't tried.
+A full example can be found at link:https://github.com/SevereOverfl0w/super-duper-octo-barnacle[super-duper-octo-barnacle].
+
+. Follow link:https://github.com/clojars/clojars-web/wiki/Pushing#maven[Clojars maven guide] for "settings.xml" only 
+
+. You can generate your jar by passing the `--no-libs` option to your jar.
+Also in this example is `--project-path`, although this is not strictly required.
+I highly recommend putting this in a Makefile or shell script.
++
+[source,bash]
+----
+clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "8acf80dd4d6e5173585f5c6fec7af28a310f3ed7"}}}' -m mach.pack.alpha.skinny --no-libs --project-path my-cool-lib.jar
+----
+
+. You will also need a pom.xml, you can generate one with `clojure`:
++
+[source,bash]
+----
+clojure -Spom
+----
+. Update the pom.xml as necessary to correct your groupId or version.
+Future calls to `pom.xml` won't change them back.
+. Use `mvn` command line to deploy 
++
+[source,bash]
+----
+mvn deploy:deploy-file -Dfile=my-cool-lib.jar -DrepositoryId=clojars -Durl=https://clojars.org/repo -DpomFile=pom.xml
+----
