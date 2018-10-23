@@ -1,5 +1,4 @@
 (ns mach.pack.alpha.skinny
-  (:gen-class)
   (:require
    [clojure.tools.cli :as cli]
    [clojure.tools.deps.alpha :as tools.deps]
