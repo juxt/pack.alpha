@@ -1,4 +1,8 @@
 = Pack (alpha)
+ifdef::env-github[]
+:toc:
+:toclevels: 4
+endif::[]
 
 Package up Clojure projects in various ways, based on a deps.edn file.
 
