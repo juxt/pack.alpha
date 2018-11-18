@@ -48,6 +48,8 @@
   (last-modified [self]))
 
 (extend-protocol ILastModified
+  (Class/forName "[B")
+  (last-modified [self] (System/currentTimeMillis))
   java.io.File
   (last-modified [self] (.lastModified self))
   java.net.URL
@@ -57,11 +59,10 @@
   (doto (JarEntry. (str (.replaceAll path "\\\\" "/") (when dir? "/")))
     (.setTime (last-modified f))))
 
-(defn spit-jar!
-  [jarpath files & [attr main]]
+(defn- write-jar
+  [output-stream files & [attr main]]
   (let [manifest (when (or (seq attr) main)
                    (create-manifest main attr))
-        jarfile (io/file jarpath)
         dirs (atom #{})
         parents* #(iterate (comp (memfn getParent) io/file) %)
         parents #(->> %
@@ -69,10 +70,9 @@
                       (drop 1)
                       (take-while (complement empty?))
                       (remove (partial contains? @dirs)))]
-    (io/make-parents jarfile)
     (with-open [s (if manifest
-                    (JarOutputStream. (io/output-stream jarfile) manifest)
-                    (JarOutputStream. (io/output-stream jarfile)))]
+                    (JarOutputStream. output-stream manifest)
+                    (JarOutputStream. output-stream))]
       (doseq [[jarpath srcpath] files]
         (let [e (jarentry jarpath srcpath)]
           (try (doseq [d (parents jarpath)
@@ -88,3 +88,15 @@
                    (throw t)
                    (println (format " warning: %s\n"
                                     (.getMessage t)))))))))))
+
+(defn spit-jar!
+  [jarpath & args]
+  (let [jarfile (io/file jarpath)]
+    (io/make-parents jarfile)
+    (apply write-jar (io/output-stream jarfile) args)))
+
+(defn in-memory-jar
+  [& args]
+  (let [ba (java.io.ByteArrayOutputStream.)]
+    (apply write-jar ba args)
+    (.toByteArray ba)))
