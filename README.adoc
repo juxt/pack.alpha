@@ -107,9 +107,10 @@ It's especially practical where you can't extract into a `~/.capsule` directory,
 Usage: clj -m mach.pack.alpha.one-jar [options] <path/to/output.jar>
 
 Options:
-  -e, --extra-path STRING            add directory to classpath for building
-  -d, --deps STRING        deps.edn  deps.edn file location
-  -h, --help                         show this help
+  -e, --extra-path STRING                add directory to classpath for building
+  -d, --deps STRING        deps.edn      deps.edn file location
+  -m, --main STRING        clojure.main  Override the default main of clojure.main. You MUST use AOT compilation with this.
+  -h, --help                             show this help
 
 output.jar is where to put the output uberjar. Leading directories will be created.
 ----

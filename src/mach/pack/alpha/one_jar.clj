@@ -91,21 +91,23 @@
     (re-pattern File/pathSeparator)))
 
 (defn classpath-string->jar
-  [classpath-string jar-location]
+  [classpath-string jar-location main]
   (let [classpath
         (map io/file (split-classpath-string classpath-string))
         bootstrap-p (create-bootstrap)]
     (spit-jar!
       jar-location
       (concat ;; directories on the classpath
-              (mapcat
-                (fn [cp-dir]
-                  (let [cp-dir-p (.toPath cp-dir)]
-                    (map
-                      (juxt #(str (.relativize cp-dir-p (.toPath %)))
-                            identity)
-                      (filter (memfn isFile) (file-seq cp-dir)))))
-                (filter (memfn isDirectory) classpath))
+              [["lib/project.jar"
+                (mach.pack.alpha.impl.assembly/in-memory-jar
+                  (mapcat
+                    (fn [cp-dir]
+                      (let [cp-dir-p (.toPath cp-dir)]
+                        (map
+                          (juxt #(str (.relativize cp-dir-p (.toPath %)))
+                                identity)
+                          (filter (memfn isFile) (file-seq cp-dir)))))
+                    (filter (memfn isDirectory) classpath)))]]
               ;; jar deps
               (sequence
                 (comp
@@ -136,7 +138,7 @@
                   (filter #(by-ext % "class"))
                   (map (juxt #(str (.relativize bootstrap-p (.toPath %))) identity)))
                 (file-seq (.toFile bootstrap-p))))
-      [["One-Jar-Main-Class" "clojure.main"]
+      [["One-Jar-Main-Class" main]
        ;; See https://dev.clojure.org/jira/browse/CLJ-971
        ["One-Jar-URL-Factory" "com.simontuffs.onejar.JarClassLoader$OneJarURLFactory"]]
       "com.simontuffs.onejar.Boot")))
@@ -151,6 +153,8 @@
    ["-d" "--deps STRING" "deps.edn file location"
     :default "deps.edn"
     :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
+   ["-m" "--main STRING" "Override the default main of clojure.main. You MUST use AOT compilation with this."
+    :default "clojure.main"]
    ["-h" "--help" "show this help"]])
 
 (defn- usage
@@ -172,7 +176,8 @@
   [& args]
   (let [{{:keys [deps
                  extra-path
-                 help]} :options
+                 help
+                 main]} :options
          [output] :arguments
          :as parsed-opts}
         (cli/parse-opts args cli-options)
@@ -188,6 +193,10 @@
       (let [deps-map (tools.deps.reader/merge-deps
                        [(system-edn)
                         (tools.deps.reader/slurp-deps (io/file deps))])]
+        (when main
+          (println (format "NOTE: You've specified a custom main.  This usually isn't necessary, you can adjust startup command to `java -jar foo.jar -m %s` and save yourself the trouble of AOT." main)))
+        (when (and main (empty? extra-path))
+          (println "WARNING: You've set a custom main without specifying extra.  This usually means you've forgotten to specify your AOT compiled code."))
         (classpath-string->jar
           (tools.deps/make-classpath
             (tools.deps/resolve-deps deps-map nil)
@@ -196,4 +205,5 @@
                                 (paths-get [%]))
               (:paths deps-map))
             {:extra-paths extra-path})
-          output)))))
+          output
+          main)))))
