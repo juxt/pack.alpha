@@ -6,6 +6,10 @@ endif::[]
 
 Package up Clojure projects in various ways, based on a deps.edn file.
 
+Want to have a chat before opening a ticket?
+Need help or support from the community?
+Find us in the link:https://clojurians.zulipchat.com/#narrow/stream/151045-JUXT[Clojurians Zulipchat #JUXT] stream.
+
 == Usage
 
 === Auto-add to project
