@@ -196,7 +196,7 @@
         (when main
           (println (format "NOTE: You've specified a custom main.  This usually isn't necessary, you can adjust startup command to `java -jar foo.jar -m %s` and save yourself the trouble of AOT." main)))
         (when (and main (empty? extra-path))
-          (println "WARNING: You've set a custom main without specifying extra.  This usually means you've forgotten to speicfy your AOT compiled code."))
+          (println "WARNING: You've set a custom main without specifying extra.  This usually means you've forgotten to specify your AOT compiled code."))
         (classpath-string->jar
           (tools.deps/make-classpath
             (tools.deps/resolve-deps deps-map nil)
