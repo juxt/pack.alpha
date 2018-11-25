@@ -45,7 +45,7 @@
                                :jar
                                ".jar"))])
                     :type output-type}}))
-      (:paths lib)))
+      (filter #(.exists (io/file %)) (:paths lib))))
 
 (defn project-paths->steps
  [paths path-root {:keys [output-components output-target] :as project-config}]
