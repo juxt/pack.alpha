@@ -185,7 +185,7 @@
       (println (error-msg errors))
       :else
       (do
-        (when main
+        (when (and main (not= main "clojure.main"))
           (println (format "NOTE: You've specified a custom main.  This usually isn't necessary, you can adjust startup command to `java -jar foo.jar -m %s` and save yourself the trouble of AOT." main)))
         (classpath-string->jar
           (-> (tools-deps/slurp-deps options)
