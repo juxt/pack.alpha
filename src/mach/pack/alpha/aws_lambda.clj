@@ -1,13 +1,11 @@
 (ns mach.pack.alpha.aws-lambda
   (:require
-   [clojure.java.io :as io]
-   [clojure.string :as string]
-   [clojure.tools.deps.alpha :as tools.deps]
-   [clojure.tools.deps.alpha.reader :as tools.deps.reader]
-   [clojure.tools.deps.alpha.script.make-classpath]
-   [mach.pack.alpha.impl.assembly :refer [spit-zip!]]
-   [mach.pack.alpha.impl.elodin :as elodin]
-   [mach.pack.alpha.impl.util :refer [system-edn]])
+    [clojure.java.io :as io]
+    [clojure.string :as string]
+    [clojure.tools.cli :as cli]
+    [mach.pack.alpha.impl.tools-deps :as tools-deps]
+    [mach.pack.alpha.impl.assembly :refer [spit-zip!]]
+    [mach.pack.alpha.impl.elodin :as elodin])
   (:import
    java.io.File
    java.nio.file.Paths))
@@ -54,20 +52,41 @@
                              identity)))
                 classpath)))))
 
+(defn- usage
+  [summary]
+  (->>
+    ["Usage: clj -m mach.pack.alpha.aws-lambda [options] <path/to/output.zip>"
+     ""
+     "Options:"
+     summary
+     ""
+     "output.zip is where to put the output zip. Leading directories will be created."]
+    (string/join \newline)))
+
+(defn- error-msg [errors]
+  (str "The following errors occurred while parsing your command:\n\n"
+       (string/join \newline errors)))
+
 (defn -main
   [& args]
-  (let [[deps-edn jar-location build-dir] args
-        deps-map (tools.deps.reader/merge-deps
-                   [(system-edn)
-                    (tools.deps.reader/slurp-deps (io/file deps-edn))])]
-    (classpath-string->zip
-      (tools.deps/make-classpath
-        (tools.deps/resolve-deps deps-map nil)
-        (conj
-          (map
-            #(.resolveSibling (paths-get [deps-edn])
-                              (paths-get [%]))
-            (:paths deps-map))
-          build-dir)
-        nil)
-      jar-location)))
+  (let [{{:keys [help main]
+          :as options} :options
+         [jar-location] :arguments
+         :as parsed-opts} (cli/parse-opts
+                            args
+                            (concat tools-deps/cli-spec
+                                    [["-h" "--help" "show this help"]]))
+        errors (cond-> (:errors parsed-opts)
+                 (not jar-location)
+                 (conj "Output must be specified"))]
+    (cond
+      help
+      (println (usage (:summary parsed-opts)))
+      errors
+      (println (error-msg errors))
+      :else
+      (classpath-string->zip
+        (-> (tools-deps/slurp-deps options)
+            (tools-deps/parse-deps-map options)
+            (tools-deps/make-classpath))
+        jar-location))))

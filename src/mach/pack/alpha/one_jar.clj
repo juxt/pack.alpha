@@ -1,15 +1,13 @@
 (ns mach.pack.alpha.one-jar
   (:require
-   [clojure.java.io :as io]
-   [clojure.string :as string]
-   [clojure.tools.cli :as cli]
-   [clojure.tools.deps.alpha :as tools.deps]
-   [clojure.tools.deps.alpha.reader :as tools.deps.reader]
-   [clojure.tools.deps.alpha.script.make-classpath]
-   [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
-   [mach.pack.alpha.impl.elodin :as elodin]
-   [mach.pack.alpha.impl.util :refer [system-edn]]
-   [me.raynes.fs :as fs])
+    [clojure.java.io :as io]
+    [clojure.string :as string]
+    [clojure.tools.cli :as cli]
+    [mach.pack.alpha.impl.tools-deps :as tools-deps]
+    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
+    [mach.pack.alpha.impl.elodin :as elodin]
+    [mach.pack.alpha.impl.util :refer [system-edn]]
+    [me.raynes.fs :as fs])
   (:import
    java.io.File
    [java.nio.file Files Paths]
@@ -148,14 +146,11 @@
   (Paths/get first (into-array String more)))
 
 (def ^:private cli-options
-  [["-e" "--extra-path STRING" "add directory to classpath for building"
-    :assoc-fn (fn [m k v] (update m k conj v))]
-   ["-d" "--deps STRING" "deps.edn file location"
-    :default "deps.edn"
-    :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
-   ["-m" "--main STRING" "Override the default main of clojure.main. You MUST use AOT compilation with this."
-    :default "clojure.main"]
-   ["-h" "--help" "show this help"]])
+  (concat
+    tools-deps/cli-spec
+    [["-m" "--main STRING" "Override the default main of clojure.main. You MUST use AOT compilation with this."
+      :default "clojure.main"]
+     ["-h" "--help" "show this help"]]))
 
 (defn- usage
   [summary]
@@ -174,10 +169,9 @@
 
 (defn -main
   [& args]
-  (let [{{:keys [deps
-                 extra-path
-                 help
-                 main]} :options
+  (let [{{:keys [help
+                 main]
+          :as options} :options
          [output] :arguments
          :as parsed-opts}
         (cli/parse-opts args cli-options)
@@ -190,20 +184,12 @@
       errors
       (println (error-msg errors))
       :else
-      (let [deps-map (tools.deps.reader/merge-deps
-                       [(system-edn)
-                        (tools.deps.reader/slurp-deps (io/file deps))])]
+      (do
         (when main
           (println (format "NOTE: You've specified a custom main.  This usually isn't necessary, you can adjust startup command to `java -jar foo.jar -m %s` and save yourself the trouble of AOT." main)))
-        (when (and main (empty? extra-path))
-          (println "WARNING: You've set a custom main without specifying extra.  This usually means you've forgotten to specify your AOT compiled code."))
         (classpath-string->jar
-          (tools.deps/make-classpath
-            (tools.deps/resolve-deps deps-map nil)
-            (map
-              #(.resolveSibling (paths-get [deps])
-                                (paths-get [%]))
-              (:paths deps-map))
-            {:extra-paths extra-path})
+          (-> (tools-deps/slurp-deps options)
+              (tools-deps/parse-deps-map options)
+              (tools-deps/make-classpath))
           output
           main)))))

@@ -1,27 +1,13 @@
 (ns mach.pack.alpha.skinny
   (:require
-   [clojure.tools.cli :as cli]
-   [clojure.tools.deps.alpha :as tools.deps]
-   [clojure.tools.deps.alpha.script.make-classpath]
-   [clojure.tools.deps.alpha.reader :as tools.deps.reader]
-   [clojure.java.io :as io]
-   [clojure.string :as string]
-   [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
-   [mach.pack.alpha.impl.elodin :as elodin]
-   [mach.pack.alpha.impl.util :refer [system-edn]]
-   [me.raynes.fs :as fs])
+    [clojure.tools.cli :as cli]
+    [clojure.java.io :as io]
+    [clojure.string :as string]
+    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
+    [mach.pack.alpha.impl.elodin :as elodin]
+    [mach.pack.alpha.impl.tools-deps :as tools-deps]
+    [me.raynes.fs :as fs])
   (:import [java.nio.file Paths]))
-
-(defn slurp-deps
- [deps-f]
- (tools.deps.reader/merge-deps
-   [(system-edn)
-    (tools.deps.reader/slurp-deps (io/file deps-f))]))
-
-(defn resolve-deps-f
- "Given the location of a deps.edn file, return the lib-map"
- [deps-f]
- (tools.deps/resolve-deps (slurp-deps deps-f) nil))
 
 (defn file->type
  [file]
@@ -79,20 +65,14 @@
                          :type output-target}})
              paths)))
 
-(defn deps-f->steps
- [deps-f extra-paths project-config lib-config]
- (let [deps-edn (slurp-deps deps-f)
-       path-root (fs/parent deps-f)]
+(defn tools-deps->steps
+ [{::tools-deps/keys [lib-map paths]} project-config lib-config]
+ (let [path-root (fs/parent "deps.edn")]
    (concat
     (when project-config
-      (project-paths->steps
-        (concat (map #(.getAbsolutePath (io/file path-root %)) (:paths deps-edn))
-                extra-paths)
-        path-root
-        project-config))
+      (project-paths->steps paths path-root project-config))
     (when lib-config
-      (let [lib-map (resolve-deps-f deps-f)]
-        (mapcat (fn [[n lib]] (lib->steps n lib lib-config)) lib-map))))))
+      (mapcat (fn [[n lib]] (lib->steps n lib lib-config)) lib-map)))))
 
 (defn copy-dir-to-dir
  [{:keys [input output]}]
@@ -135,30 +115,28 @@
                                   {:output-components ["mytest" "app.jar"]
                                    :output-target :jar}))
  (run-steps
-  (deps-f->steps "deps.edn"
-                 nil
-                 {:output-components ["mytest" "app.jar"] :output-target :jar}
-                 {:lib-dir ["mytest" "lib"] :output-target :jar})))
+   (map )
+   (tools-deps->steps (-> (tools-deps/slurp-deps nil)
+                          (tools-deps/parse-deps-map {}))
+                      {:output-components ["mytest" "app.jar"] :output-target :jar}
+                      {:lib-dir ["mytest" "lib"] :output-target :jar})))
 
 (def ^:private cli-options
-  [[nil "--no-libs" "Skip lib outputs"
-    :default false]
-   [nil "--no-project" "Skip project outputs"
-    :default false]
-   [nil "--lib-dir PATH" "Where to place the output libraries"
-    :default "target/lib"]
-   [nil "--lib-type STRING" "Lib type format to use, keep or jar. Keep will keep in original format (jar or dir)"
-    :default :jar
-    :parse-fn keyword
-    :validate [#{:jar :keep} "Only keep or jar are valid"]]
-   [nil "--project-path PATH" "Where to place the project output, if it ends with .jar then the project will automatically output as a jar also."
-    :default "target/app.jar"]
-   ["-e" "--extra-path STRING" "add directory to classpath for building"
-    :assoc-fn (fn [m k v] (update m k conj v))]
-   ["-d" "--deps STRING" "deps.edn file location"
-    :default "deps.edn"
-    :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]]
-   ["-h" "--help" "show this help"]])
+  (concat
+    [[nil "--no-libs" "Skip lib outputs"
+      :default false]
+     [nil "--no-project" "Skip project outputs"
+      :default false]
+     [nil "--lib-dir PATH" "Where to place the output libraries"
+      :default "target/lib"]
+     [nil "--lib-type STRING" "Lib type format to use, keep or jar. Keep will keep in original format (jar or dir)"
+      :default :jar
+      :parse-fn keyword
+      :validate [#{:jar :keep} "Only keep or jar are valid"]]
+     [nil "--project-path PATH" "Where to place the project output, if it ends with .jar then the project will automatically output as a jar also."
+      :default "target/app.jar"]]
+    tools-deps/cli-spec
+    [["-h" "--help" "show this help"]]))
 
 (defmacro *ns*-name
   []
@@ -179,14 +157,13 @@
 
 (defn -main
   [& args]
-  (let [{{:keys [deps
-                 extra-path
-                 help
+  (let [{{:keys [help
                  no-libs
                  no-project
                  lib-dir
                  lib-type
-                 project-path]} :options
+                 project-path]
+          :as options} :options
          :as parsed-opts} (cli/parse-opts args cli-options)
         errors (:errors parsed-opts)]
     (cond
@@ -196,12 +173,14 @@
       (println (error-msg errors))
       :else
       (run-steps
-        (deps-f->steps deps extra-path
-                       (when-not no-project
-                         {:output-components (elodin/file->path-seq project-path)
-                          :output-target (case (fs/extension project-path)
-                                           nil :dir
-                                           ".jar" :jar)})
-                       (when-not no-libs
-                         {:lib-dir (elodin/file->path-seq lib-dir)
-                          :output-target lib-type}))))))
+        (tools-deps->steps
+          (-> (tools-deps/slurp-deps options)
+              (tools-deps/parse-deps-map options))
+          (when-not no-project
+            {:output-components (elodin/file->path-seq project-path)
+             :output-target (case (fs/extension project-path)
+                              nil :dir
+                              ".jar" :jar)})
+          (when-not no-libs
+            {:lib-dir (elodin/file->path-seq lib-dir)
+             :output-target lib-type}))))))
