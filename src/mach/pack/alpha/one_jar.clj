@@ -4,9 +4,10 @@
     [clojure.string :as string]
     [clojure.tools.cli :as cli]
     [mach.pack.alpha.impl.tools-deps :as tools-deps]
-    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
     [mach.pack.alpha.impl.elodin :as elodin]
     [mach.pack.alpha.impl.util :refer [system-edn]]
+    [mach.pack.alpha.impl.lib-map :as lib-map]
+    [mach.pack.alpha.impl.vfs :as vfs]
     [me.raynes.fs :as fs])
   (:import
    java.io.File
@@ -81,69 +82,53 @@
            nil)
     bootstrap-p))
 
-(defn split-classpath-string
-  [classpath-string]
-  (string/split
-    classpath-string
-    ;; re-pattern should be safe given the characters that can be separators, but could be safer
-    (re-pattern File/pathSeparator)))
+(defn write-jar
+  [{::tools-deps/keys [lib-map paths]} jar-location main]
+  (let [bootstrap-p (create-bootstrap)]
+    (vfs/write-vfs
+      {:stream (io/output-stream jar-location)
+       :type :jar
+       :manifest {:main "com.simontuffs.onejar.Boot"
+                  :ext-attrs
+                  [["One-Jar-Main-Class" main]
+                   ;; See https://dev.clojure.org/jira/browse/CLJ-971
+                   ["One-Jar-URL-Factory" "com.simontuffs.onejar.JarClassLoader$OneJarURLFactory"]]}}
 
-(defn classpath-string->jar
-  [classpath-string jar-location main]
-  (let [classpath
-        (map io/file (split-classpath-string classpath-string))
-        bootstrap-p (create-bootstrap)]
-    (spit-jar!
-      jar-location
-      (concat ;; directories on the classpath
-              [["lib/project.jar"
-                (mach.pack.alpha.impl.assembly/in-memory-jar
-                  (mapcat
-                    (fn [cp-dir]
-                      (let [cp-dir-p (.toPath cp-dir)]
-                        (map
-                          (juxt #(str (.relativize cp-dir-p (.toPath %)))
-                                identity)
-                          (filter (memfn isFile) (file-seq cp-dir)))))
-                    (filter (memfn isDirectory) classpath)))]]
-              ;; jar deps
-              (sequence
-                (comp
-                  (map file-seq)
-                  cat
-                  (filter (memfn isFile))
-                  (filter #(by-ext % "jar"))
-                  (map (juxt (comp
-                               elodin/path-seq->str
-                               #(cons "lib" %)
-                               elodin/hash-derived-name)
-                             identity)))
-                classpath)
-              ;; resources (LICENSE and version) from onejar
-              #_(comment (into []
-                               (comp (filter (memfn isFile))
-                                     (map #(string/replace % #"^src/" ""))
-                                     (map (juxt #(string/replace % #"^.*resources/" "")
-                                                (fn [x]
-                                                  (list 'io/resource x)))))
-                               (file-seq (io/file "src/mach/pack/alpha/bootstrap/onejar/resources/"))))
-              [[".version" (io/resource "mach/pack/alpha/bootstrap/onejar/resources/.version")]
-               ["doc/one-jar-license.txt" (io/resource "mach/pack/alpha/bootstrap/onejar/resources/doc/one-jar-license.txt")]]
-              ;; compiled bootstrap files
-              (sequence
-                (comp
-                  (filter (memfn isFile))
-                  (filter #(by-ext % "class"))
-                  (map (juxt #(str (.relativize bootstrap-p (.toPath %))) identity)))
-                (file-seq (.toFile bootstrap-p))))
-      [["One-Jar-Main-Class" main]
-       ;; See https://dev.clojure.org/jira/browse/CLJ-971
-       ["One-Jar-URL-Factory" "com.simontuffs.onejar.JarClassLoader$OneJarURLFactory"]]
-      "com.simontuffs.onejar.Boot")))
+      (concat
+        (map
+          (fn [{:keys [path] :as all}]
+            {:input (io/input-stream path)
+             :path ["lib" (elodin/jar-name all)]})
+          (lib-map/lib-jars lib-map))
 
-(defn paths-get
-  [[first & more]]
-  (Paths/get first (into-array String more)))
+        (map
+          (fn [{:keys [path] :as all}]
+            {:paths (vfs/files-path (file-seq (io/file path)) (io/file path))
+             :path ["lib" (format "%s.jar" (elodin/directory-name all))]})
+          (lib-map/lib-dirs lib-map))
+
+        [{:path ["lib" "project.jar"]
+          :paths (mapcat
+                   (fn [dir]
+                     (let [root (io/file dir)]
+                       (vfs/files-path (file-seq root) root)))
+                   paths)}]
+
+        ;; This code will hoover up important files like the license from
+        ;; OneJar.  but only works in dev, so combine with fireplace's c!! to
+        ;; actually use.
+        #_(comment (into []
+                         (comp (filter (memfn isFile))
+                               (map #(string/replace % #"^src/" ""))
+                               (map (fn [x]
+                                      {:path (string/replace x #"^.*resources/" "")
+                                       :input (list 'io/input-stream (list 'io/resource x))})))
+                         (file-seq (io/file "src/mach/pack/alpha/bootstrap/onejar/resources/"))))
+        [{:path ".version", :input (io/input-stream (io/resource "mach/pack/alpha/bootstrap/onejar/resources/.version"))} {:path "doc/one-jar-license.txt", :input (io/input-stream (io/resource "mach/pack/alpha/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
+        (let [root (.toFile bootstrap-p)]
+          (vfs/files-path
+            (filter #(.endsWith (.getName %) ".class") (file-seq root))
+            root))))))
 
 (def ^:private cli-options
   (concat
@@ -187,9 +172,8 @@
       (do
         (when (and main (not= main "clojure.main"))
           (println (format "NOTE: You've specified a custom main.  This usually isn't necessary, you can adjust startup command to `java -jar foo.jar -m %s` and save yourself the trouble of AOT." main)))
-        (classpath-string->jar
+        (write-jar
           (-> (tools-deps/slurp-deps options)
-              (tools-deps/parse-deps-map options)
-              (tools-deps/make-classpath))
+              (tools-deps/parse-deps-map options))
           output
           main)))))

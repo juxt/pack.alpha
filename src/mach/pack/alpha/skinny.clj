@@ -3,123 +3,88 @@
     [clojure.tools.cli :as cli]
     [clojure.java.io :as io]
     [clojure.string :as string]
-    [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
     [mach.pack.alpha.impl.elodin :as elodin]
     [mach.pack.alpha.impl.tools-deps :as tools-deps]
+    [mach.pack.alpha.impl.lib-map :as lib-map]
+    [mach.pack.alpha.impl.vfs :as vfs]
     [me.raynes.fs :as fs])
   (:import [java.nio.file Paths]))
 
-(defn file->type
- [file]
- (let [file (io/file file)]
-   (cond
-     (fs/directory? file) :dir
-     (and (fs/file? file) (= (fs/extension file) ".jar")) :jar)))
+(defn write-project
+  [{::tools-deps/keys [paths]}
+   {:keys [output-path output-target]}]
+  (case output-target
+    :jar (vfs/write-vfs
+           {:type :jar
+            :stream (io/output-stream output-path)}
+           (mapcat
+             (fn [path]
+               (vfs/files-path
+                 (file-seq (io/file path))
+                 (io/file path)))
+             paths))
 
-(defn lib->steps
- [lib-name lib {:keys [lib-dir output-target]}]
- (map (fn [path]
-        (let [input-type (file->type path)
-              output-type (if (= output-target :keep)
-                           input-type
-                           output-target)]
-          {:input {:paths [path] :type input-type}
-           :output {:components
-                      (concat
-                       lib-dir
-                       [(str (namespace lib-name)
-                             "__"
-                             (name lib-name)
-                             (when-let [v ((some-fn :mvn/version :sha) lib)]
-                               (str "__" v))
-                             (when (= input-type :dir)
-                               (str "-"
-                                    (string/join
-                                      "-"
-                                      (elodin/path->path-seq
-                                        (.relativize (elodin/str->abs-path (:deps/root lib))
-                                                     (elodin/str->path path))))))
-                             (when (= output-type :jar)
-                               ;; No suffix, just presume that
-                               ;; there's only ever one jar.
-                               :jar
-                               ".jar"))])
-                    :type output-type}}))
-      (filter #(.exists (io/file %)) (:paths lib))))
+    :dir (vfs/write-vfs
+           {:type :dir
+            :root output-path}
+           (mapcat
+             (fn [path]
+               (map
+                 (fn [x]
+                   (update x :path (fn [spath]
+                                     (cons
+                                       (string/join
+                                         "-"
+                                         (elodin/path->path-seq
+                                           (elodin/str->path path)))
+                                       spath))))
+                 (vfs/files-path (file-seq (io/file path)) (io/file path))))
+             paths))))
 
-(defn project-paths->steps
- [paths path-root {:keys [output-components output-target] :as project-config}]
- (case output-target
-   :jar [{:input {:paths paths :type :dir}
-          :output {:components output-components :type output-target}}]
-   :dir (map (fn [path]
-               ;; TODO: path needs resolving relative to the project-root
-               {:input {:paths [path] :type :dir}
-                :output {:components
-                           (concat #_(butlast output-components)
-                                   #_[(str (last output-components) "-" path)]
-                                   output-components
-                                   [(str
-                                      (.relativize (elodin/str->abs-path path-root)
-                                                   (elodin/str->abs-path path)))])
-                         :type output-target}})
-             paths)))
+(defn write-libs
+  [{::tools-deps/keys [lib-map]}
+   {:keys [lib-dir output-target]}]
+  (let [root (io/file lib-dir)]
+    (vfs/write-vfs
+      {:type :dir
+       :root root}
+      (concat
+        (map
+          ;; TODO: Master elodin should be in charge of this
+          (fn [{:keys [path] :as all}]
+            {:path [(format "%s.jar" (elodin/versioned-lib all))]
+             :input (io/input-stream path)})
+          (lib-map/lib-jars lib-map))
+        (case output-target
+          :keep 
+          (mapcat
+            (fn [{:keys [lib path] :as all}]
+              (map (fn prefix-paths [pat]
+                     (update pat :path
+                             #(cons
+                                (format "%s-%s"
+                                        (elodin/versioned-lib all)
+                                        (elodin/directory-unique all))
+                                %)))
+                   (vfs/files-path (file-seq (io/file path)) (io/file path))))
+            (lib-map/lib-dirs lib-map))
+          :jar
+          (map
+            (fn [{:keys [lib path] :as all}]
+              {:path
+               [(format "%s-%s.jar"
+                        (elodin/versioned-lib all)
+                        (elodin/directory-unique all))]
 
-(defn tools-deps->steps
- [{::tools-deps/keys [lib-map paths]} project-config lib-config]
- (let [path-root (fs/parent "deps.edn")]
-   (concat
-    (when project-config
-      (project-paths->steps paths path-root project-config))
-    (when lib-config
-      (mapcat (fn [[n lib]] (lib->steps n lib lib-config)) lib-map)))))
+               :paths (vfs/files-path (file-seq root) root)
 
-(defn copy-dir-to-dir
- [{:keys [input output]}]
- (doseq [path (:paths input)]
-   (fs/copy-dir path (-> output :components elodin/path-seq->str))))
+               :type :jar})
+            (lib-map/lib-dirs lib-map)))))))
 
-(defn copy-file-to-file
- [{:keys [input output]}]
- (doseq [path (:paths input)]
-   (fs/copy+ path (-> output :components elodin/path-seq->str))))
-
-(defn jar-file-seq
- [path]
- (map (juxt #(str (.relativize (.toPath path) (.toPath %))) io/file)
-      (filter (memfn isFile) (file-seq path))))
-
-(defn dir->jar
- [{:keys [input output]}]
- (spit-jar! (-> output :components elodin/path-seq->str io/file)
-            (mapcat (comp jar-file-seq io/file) (:paths input))
-            (:jar/attr output)
-            (:jar/main output)))
-
-(defn run-steps
- [steps]
- (doseq [{:keys [output]} steps
-         :let [p (-> output :components elodin/path-seq->str)]]
-   (when (fs/exists? p)
-     (throw (IllegalArgumentException.
-             (str p " already exists, expected behaviour is unknown.")))))
- (doseq [{:keys [input output] :as step} steps]
-   (let [f (case [(:type input) (:type output)]
-             ([:dir :dir]) copy-dir-to-dir
-             ([:jar :jar]) copy-file-to-file
-             ([:dir :jar]) dir->jar)]
-     (f step))))
-
-(comment
- (run-steps (project-paths->steps ["src"]
-                                  {:output-components ["mytest" "app.jar"]
-                                   :output-target :jar}))
- (run-steps
-   (map )
-   (tools-deps->steps (-> (tools-deps/slurp-deps nil)
-                          (tools-deps/parse-deps-map {}))
-                      {:output-components ["mytest" "app.jar"] :output-target :jar}
-                      {:lib-dir ["mytest" "lib"] :output-target :jar})))
+(defn write-all
+  [x project-config lib-config]
+  (write-project x project-config)
+  (write-libs x lib-config))
 
 (def ^:private cli-options
   (concat
@@ -172,15 +137,14 @@
       errors
       (println (error-msg errors))
       :else
-      (run-steps
-        (tools-deps->steps
-          (-> (tools-deps/slurp-deps options)
-              (tools-deps/parse-deps-map options))
-          (when-not no-project
-            {:output-components (elodin/file->path-seq project-path)
-             :output-target (case (fs/extension project-path)
-                              nil :dir
-                              ".jar" :jar)})
-          (when-not no-libs
-            {:lib-dir (elodin/file->path-seq lib-dir)
-             :output-target lib-type}))))))
+      (write-all
+        (-> (tools-deps/slurp-deps options)
+            (tools-deps/parse-deps-map options))
+        (when-not no-project
+          {:output-path project-path
+           :output-target (case (fs/extension project-path)
+                            nil :dir
+                            ".jar" :jar)})
+        (when-not no-libs
+          {:lib-dir lib-dir
+           :output-target lib-type})))))

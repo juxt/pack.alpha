@@ -3,7 +3,8 @@
 
   Provides functionality for naming a file suitable for use in archives."
   (:require
-   [clojure.java.io :as io])
+   [clojure.java.io :as io]
+   [clojure.string :as string])
   (:import
    [java.nio.file Files Paths]))
 
@@ -66,3 +67,26 @@
 (defn full-path-derived-name
   [file]
   (file->path-seq file))
+
+(defn versioned-lib
+  [{:keys [lib] :as all}]
+  (format "%s__%s__%s"
+          (namespace lib)
+          (name lib)
+          ((some-fn :mvn/version :sha) all)))
+
+(defn directory-unique
+  [{:keys [path deps/root]}]
+  (string/join
+    "-"
+    (path->path-seq
+      (.relativize (str->abs-path root)
+                   (str->path path)))))
+
+(defn jar-name
+  [all]
+  (str (versioned-lib all) ".jar"))
+
+(defn directory-name
+  [all]
+  (str (versioned-lib all) "-" (directory-unique all)))

@@ -1,21 +1,17 @@
 (ns mach.pack.alpha.capsule
   (:require
-   [clojure.java.io :as io]
-   [clojure.string :as string]
-   [clojure.tools.cli :as cli]
-   [mach.pack.alpha.impl.tools-deps :as tools-deps]
-   [mach.pack.alpha.impl.assembly :refer [spit-jar!]]
-   [mach.pack.alpha.impl.elodin :as elodin]
-   [me.raynes.fs :as fs])
+    [clojure.java.io :as io]
+    [clojure.string :as string]
+    [clojure.tools.cli :as cli]
+    [mach.pack.alpha.impl.tools-deps :as tools-deps]
+    [mach.pack.alpha.impl.elodin :as elodin]
+    [mach.pack.alpha.impl.lib-map :as lib-map]
+    [mach.pack.alpha.impl.vfs :as vfs]
+    [me.raynes.fs :as fs])
   (:import
    java.io.File
    [java.nio.file Files Paths]
    java.nio.file.attribute.FileAttribute))
-
-;; code adapted from boot
-(defn by-ext
-  [f ext]
-  (.endsWith (.getName f) (str "." ext)))
 
 (defn- deleting-tmp-dir
   [prefix]
@@ -27,46 +23,36 @@
                           (fs/delete-dir (.toFile tmp-path)))))
     tmp-path))
 
-(defn split-classpath-string
-  [classpath-string]
-  (string/split
-    classpath-string
-    ;; re-pattern should be safe given the characters that can be separators, but could be safer
-    (re-pattern File/pathSeparator)))
+(defn write-jar
+  [{::tools-deps/keys [lib-map paths]} output ext-attrs]
+  (vfs/write-vfs
+    {:type :jar
+     :stream (io/output-stream output)
+     :manifest {:main "Capsule"
+                :ext-attrs ext-attrs}}
+    (concat
+      (map
+        (fn [{:keys [path] :as all}]
+          {:input (io/input-stream path)
+           :path [(elodin/jar-name all)]})
+        (lib-map/lib-jars lib-map))
 
-(defn paths-get
-  [[first & more]]
-  (Paths/get first (into-array String more)))
+      (map
+        (fn [{:keys [path] :as all}]
+          {:paths (vfs/files-path (file-seq (io/file path)) (io/file path))
+           :path [(format "%s.jar" (elodin/directory-name all))]})
+        (lib-map/lib-dirs lib-map))
 
-(defn classpath-string->jar
-  [classpath-string jar-location manifest]
-  (let [classpath
-        (map io/file (split-classpath-string classpath-string))]
-    (spit-jar!
-      jar-location
-      (concat ;; directories on the classpath
-              (mapcat
-                (fn [cp-dir]
-                  (let [cp-dir-p (.toPath cp-dir)]
-                    (map
-                      (juxt #(str (.relativize cp-dir-p (.toPath %)))
-                            io/file)
-                      (filter (memfn isFile) (file-seq cp-dir)))))
-                (filter (memfn isDirectory) classpath))
-              ;; jar deps
-              (sequence
-                (comp
-                  (map file-seq)
-                  cat
-                  (filter (memfn isFile))
-                  (filter #(by-ext % "jar"))
-                  (map (juxt (comp elodin/path-seq->str
-                                   elodin/hash-derived-name)
-                             io/file)))
-                classpath)
-              [["Capsule.class" (io/resource "Capsule.class")]])
-      manifest
-      "Capsule")))
+      [{:paths (mapcat
+                 (fn [dir]
+                   (let [root (io/file dir)]
+                     (vfs/files-path
+                       (file-seq root)
+                       root)))
+                 paths)
+        :path ["project.jar"]}
+       {:path ["Capsule.class"]
+        :input (io/input-stream (io/resource "Capsule.class"))}])))
 
 (def manifest-header-pattern
   ;; see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html
@@ -134,10 +120,9 @@
       errors
       (println (error-msg errors))
       :else
-      (classpath-string->jar
+      (write-jar
         (-> (tools-deps/slurp-deps options)
-            (tools-deps/parse-deps-map options)
-            (tools-deps/make-classpath))
+            (tools-deps/parse-deps-map options))
         output
         (cond->
           [["Application-Class" "clojure.main"]

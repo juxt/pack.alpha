@@ -4,53 +4,37 @@
     [clojure.string :as string]
     [clojure.tools.cli :as cli]
     [mach.pack.alpha.impl.tools-deps :as tools-deps]
-    [mach.pack.alpha.impl.assembly :refer [spit-zip!]]
-    [mach.pack.alpha.impl.elodin :as elodin])
-  (:import
-   java.io.File
-   java.nio.file.Paths))
+    [mach.pack.alpha.impl.elodin :as elodin]
+    [mach.pack.alpha.impl.vfs :as vfs]
+    [mach.pack.alpha.impl.lib-map :as lib-map]))
 
-(defn by-ext
-  [f ext]
-  (.endsWith (.getName f) (str "." ext)))
+(defn write-zip
+  [{::tools-deps/keys [lib-map paths]} output]
+  (vfs/write-vfs
+    {:type :zip
+     :stream (io/output-stream output)}
+    (concat
+      (map
+        (fn [{:keys [path] :as all}]
+          {:input (io/input-stream path)
+           :path ["lib" (elodin/jar-name all)]})
+        (lib-map/lib-jars lib-map))
 
-(defn split-classpath-string
-  [classpath-string]
-  (string/split
-    classpath-string
-    ;; re-pattern should be safe given the characters that can be separators, but could be safer
-    (re-pattern File/pathSeparator)))
+      (map
+        (fn [{:keys [path lib]}]
+          {:paths (vfs/files-path
+                    (file-seq (io/file path))
+                    (io/file path))
+           :path ["lib" (format "%s.jar" (elodin/directory-name))]})
+        (lib-map/lib-dirs lib-map))
 
-(defn paths-get
-  [[first & more]]
-  (Paths/get first (into-array String more)))
-
-(defn classpath-string->zip
-  [classpath-string zip-location]
-  (let [classpath
-        (map io/file (split-classpath-string classpath-string))]
-    (spit-zip!
-      zip-location
-      (concat ;; directories on the classpath
-              (mapcat
-                (fn [cp-dir]
-                  (let [cp-dir-p (.toPath cp-dir)]
-                    (map
-                      (juxt #(str (.relativize cp-dir-p (.toPath %)))
-                            identity)
-                      (filter (memfn isFile) (file-seq cp-dir)))))
-                (filter (memfn isDirectory) classpath))
-              ;; jar deps
-              (sequence
-                (comp
-                  (map file-seq)
-                  cat
-                  (filter (memfn isFile))
-                  (filter #(by-ext % "jar"))
-                  (map (juxt #(elodin/path-seq->str
-                                (cons "lib" (elodin/hash-derived-name %)))
-                             identity)))
-                classpath)))))
+      (mapcat
+        (fn [dir]
+          (let [root (io/file dir)]
+            (vfs/files-path
+              (file-seq root)
+              root)))
+        paths))))
 
 (defn- usage
   [summary]
@@ -85,8 +69,7 @@
       errors
       (println (error-msg errors))
       :else
-      (classpath-string->zip
+      (write-zip
         (-> (tools-deps/slurp-deps options)
-            (tools-deps/parse-deps-map options)
-            (tools-deps/make-classpath))
+            (tools-deps/parse-deps-map options))
         jar-location))))
