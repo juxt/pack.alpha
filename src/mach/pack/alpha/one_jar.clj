@@ -83,16 +83,19 @@
     bootstrap-p))
 
 (defn write-jar
-  [{::tools-deps/keys [lib-map paths]} jar-location main]
+  [{::tools-deps/keys [lib-map paths]} jar-location main & [args]]
   (let [bootstrap-p (create-bootstrap)]
     (vfs/write-vfs
       {:stream (io/output-stream jar-location)
        :type :jar
        :manifest {:main "com.simontuffs.onejar.Boot"
                   :ext-attrs
-                  [["One-Jar-Main-Class" main]
-                   ;; See https://dev.clojure.org/jira/browse/CLJ-971
-                   ["One-Jar-URL-Factory" "com.simontuffs.onejar.JarClassLoader$OneJarURLFactory"]]}}
+                  (concat
+                    [["One-Jar-Main-Class" main]
+                     ;; See https://dev.clojure.org/jira/browse/CLJ-971
+                     ["One-Jar-URL-Factory" "com.simontuffs.onejar.JarClassLoader$OneJarURLFactory"]]
+                    (when args
+                      [["One-Jar-Main-Args" args]]))}}
 
       (concat
         (map
@@ -135,6 +138,7 @@
     tools-deps/cli-spec
     [["-m" "--main STRING" "Override the default main of clojure.main. You MUST use AOT compilation with this."
       :default "clojure.main"]
+     [nil "--args STRING" "Default args to the main"]
      ["-h" "--help" "show this help"]]))
 
 (defn- usage
@@ -155,7 +159,8 @@
 (defn -main
   [& args]
   (let [{{:keys [help
-                 main]
+                 main
+                 args]
           :as options} :options
          [output] :arguments
          :as parsed-opts}
@@ -176,4 +181,5 @@
           (-> (tools-deps/slurp-deps options)
               (tools-deps/parse-deps-map options))
           output
-          main)))))
+          main
+          args)))))
