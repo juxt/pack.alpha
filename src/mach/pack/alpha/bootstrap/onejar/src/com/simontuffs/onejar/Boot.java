@@ -244,7 +244,7 @@ public class Boot {
         String mainargs = attributes.getValue(ONE_JAR_MAIN_ARGS);
         if (mainargs != null && args.length == 0) {
             // Replace the args with built-in.  Support escaped whitespace.
-            args = mainargs.split("[^\\\\]\\s");
+            args = mainargs.split("(?<!\\\\)\\s");
             for (int i=0; i<args.length; i++) {
                 args[i] = args[i].replaceAll("\\\\(\\s)", "$1");
             }
