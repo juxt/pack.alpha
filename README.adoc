@@ -34,16 +34,31 @@ The following examples assume you have run this.
 
 The lambda approach will generate a zip which can be uploaded to AWS.
 
-[source,clojure]
+[source,bash]
+.Example call
 ----
-clj -A:pack mach.pack.alpha.aws-lambda deps.edn lambda.zip build_dir
+$ clj -A:pack mach.pack.alpha.aws-lambda -e classes lambda.zip
 ----
 
 In this example:
 
-* `deps.edn` is the location of the deps.edn to consume.
 * lambda.zip is where to write the package to.
 * build_dir is a directory containing extra paths to add, for example it may be where you compile classes to, or write built css to.
+
+
+[source]
+----
+Usage: clj -m mach.pack.alpha.aws-lambda [options] <path/to/output.zip>
+
+Options:
+  -A ALIASES               Concatenated aliases of any kind, ex: -A:dev:mem
+  -R ALIASES               Concatenated resolve-deps aliases, ex: -R:bench:1.9
+  -C ALIASES               Concatenated make-classpath aliases, ex: -C:dev
+  -e, --extra-path STRING  Add directory to classpath for building. Same as :extra-paths
+  -h, --help               show this help
+
+output.zip is where to put the output zip. Leading directories will be created.
+----
 
 === Uberjar
 
