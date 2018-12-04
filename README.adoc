@@ -60,6 +60,31 @@ Options:
 output.zip is where to put the output zip. Leading directories will be created.
 ----
 
+[TIP] 
+====
+Lambda (and by extension, lambada) requires java classes.
+To generate these you will need to AOT your program.
+
+Try this alias:
+
+[source,clojure]
+----
+{:aot
+ {:extra-paths ["classes"]
+  :main-opts ["-e" "(compile,'example.lambda)"]}}
+----
+
+Then your build process will be like so:
+
+[source,shell]
+----
+$ mkdir -p classes
+$ clojure -A:aot
+$ clojure -A:pack mach.pack.alpha.aws-lambda -C:aot lambda.zip
+----
+
+====
+
 === Uberjar
 
 "Uberjar-ing" consists of packaging you application into one all-encompassing JAR (Java ARchive) file, called an "Uberjar", which can then be executed using `java -jar myapp.jar ARG1 ARG2 ARG3...`.
