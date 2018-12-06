@@ -25,7 +25,7 @@ NOTE: This isn't infallible.  Please let me know if I break your indentation.
 
 [source,clojure]
 ----
-$ clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "dccf2134bcf03726a9465d2b9997c42e5cd91bff"}}}' -m mach.pack.alpha.inject '0878b52b7718e4b348a500dce0b3edc5b555a4f1'
+$ clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "dccf2134bcf03726a9465d2b9997c42e5cd91bff"}}}' -m mach.pack.alpha.inject '24863d1ff5a54bb7cc783ff62272212b51c8b316'
 ----
 
 The following examples assume you have run this.
