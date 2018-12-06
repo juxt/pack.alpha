@@ -76,7 +76,8 @@
                         (elodin/versioned-lib all)
                         (elodin/directory-unique all))]
 
-               :paths (vfs/files-path (file-seq root) root)
+               :paths (vfs/files-path (file-seq (io/file path))
+                                      (io/file path))
 
                :type :jar})
             (lib-map/lib-dirs lib-map)))))))
