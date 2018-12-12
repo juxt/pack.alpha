@@ -84,8 +84,10 @@
 
 (defn write-all
   [x project-config lib-config]
-  (write-project x project-config)
-  (write-libs x lib-config))
+  (when project-config
+    (write-project x project-config))
+  (when lib-config
+    (write-libs x lib-config)))
 
 (def ^:private cli-options
   (concat
