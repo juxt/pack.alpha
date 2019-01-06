@@ -45,6 +45,10 @@
   [file]
   (file->path-seq file))
 
+(defn path-seq-parents
+  [path-seq]
+  (take-while identity (rest (iterate butlast path-seq))))
+
 (def interpolation-re #"((\{(.+?)\})\$|\$(\{(.+?)\})|%)")
 
 (defmacro ^:private <<

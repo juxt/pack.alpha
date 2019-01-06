@@ -3,8 +3,10 @@
     [clojure.java.io :as io]
     [clojure.walk :refer [postwalk]]
     [clojure.string :as string]
-    [mach.pack.alpha.impl.elodin :refer [path-seq->str
-                                         path->path-seq]])
+    [mach.pack.alpha.impl.elodin
+     :refer [path-seq->str
+             path->path-seq]
+     :as elodin])
   (:import
     [java.util.jar JarEntry JarOutputStream Manifest Attributes$Name]
     [java.util.zip ZipEntry ZipOutputStream]))
@@ -135,6 +137,18 @@
         (.put attributes (Attributes$Name. (name k)) v)))
     manifest))
 
+(defn- create-parents
+  [out path-seq]
+  (doseq [dir (map path-seq->str (elodin/path-seq-parents path-seq))]
+    (try
+      (.putNextEntry out (ZipEntry. dir))
+      (catch java.util.zip.ZipException e
+        ;; Ignore duplicate entry exceptions
+        (when-not (re-matches #"duplicate entry:.*" (.getMessage e))
+          (throw e)))
+      (finally
+        (.closeEntry out)))))
+
 (defmethod write-output :jar
   [path children]
   (with-open [out (if-let [manifest (:manifest (:output path))]
@@ -145,6 +159,7 @@
                     (JarOutputStream. (get-in path [:output :stream])))]
     (doseq [child children]
       (try
+        (create-parents out (:path child))
         (doto out
           ;; TODO: Make the jarentry code more robust around windows paths
           ;;TODO: Looked into this, \ is never valid in a zip path, which means java.nio.Path is unusable for this case.
@@ -167,6 +182,7 @@
   [path children]
   (with-open [out (ZipOutputStream. (get-in path [:output :stream]))]
     (doseq [child children]
+      (create-parents out (:path child))
       (doto out
         (.putNextEntry (-> (:path child)
                            (prepare-path)
