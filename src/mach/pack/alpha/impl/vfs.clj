@@ -139,7 +139,10 @@
 
 (defn- create-parents
   [out path-seq]
-  (doseq [dir (map path-seq->str (elodin/path-seq-parents path-seq))]
+  (doseq [parent (elodin/path-seq-parents path-seq)
+          ;; Add trailing "/", as some zip implementations require that for
+          ;; directory detection.
+          :let [dir (str (prepare-path parent) "/")]]
     (try
       (.putNextEntry out (ZipEntry. dir))
       (catch java.util.zip.ZipException e
