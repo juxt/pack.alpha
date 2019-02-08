@@ -13,6 +13,7 @@
 (defn write-project
   [{::tools-deps/keys [paths]}
    {:keys [output-path output-target]}]
+  (io/make-parents (io/file output-path))
   (case output-target
     :jar (vfs/write-vfs
            {:type :jar
