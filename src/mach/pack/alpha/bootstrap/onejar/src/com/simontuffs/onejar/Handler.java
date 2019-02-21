@@ -54,6 +54,15 @@ public class Handler extends URLStreamHandler {
 					throw new IOException("cl.getByteStream() returned null for " + resource);
 				return is;
 			}
+			public long getLastModified() {
+				long lm = super.getLastModified();
+				if (lm > 0) {
+					return lm;
+				}
+				
+				JarClassLoader cl = Boot.getClassLoader();
+				return cl.getLastModified(resource);
+			}
 		};
 	}
     

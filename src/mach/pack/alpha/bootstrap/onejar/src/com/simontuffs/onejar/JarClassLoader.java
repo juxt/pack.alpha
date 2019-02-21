@@ -147,14 +147,23 @@ public class JarClassLoader extends ClassLoader implements IProperties {
     protected boolean delegateToParent;
     
     protected static class ByteCode {
-		public ByteCode(String $name, String $original, ByteArrayOutputStream baos, String $codebase, Manifest $manifest) {
+		public ByteCode(String $name, JarEntry $entry, ByteArrayOutputStream baos, String $codebase, Manifest $manifest) {
             name = $name;
-            original = $original;
+            original = $entry.getName();
+
+            java.nio.file.attribute.FileTime lm = $entry.getLastModifiedTime();
+            if (lm != null) {
+                lastModified = lm.toMillis();
+            } else {
+                lastModified = 0;
+            }
+
             bytes = baos.toByteArray();
             codebase = $codebase;
 			manifest = $manifest;
         }
         public byte bytes[];
+        public long lastModified;
         public String name, original, codebase;
 		public Manifest manifest;
     }
@@ -593,14 +602,14 @@ public class JarClassLoader extends ClassLoader implements IProperties {
             // they are cached inside the VM until the classloader is released.
             if (type.equals("class")) {
                 if (alreadyCached(entryName, jar, baos)) return;
-				byteCode.put(entryName, new ByteCode(entryName, entry.getName(), baos, jar, man));
+				byteCode.put(entryName, new ByteCode(entryName, entry, baos, jar, man));
                 VERBOSE("cached bytes for class " + entryName);
             } else {
                 // Another kind of resource.  Cache this by name, and also prefixed
                 // by the jar name.  Don't duplicate the bytes.  This allows us
                 // to map resource lookups to either jar-local, or globally defined.
                 String localname = jar + "/" + entryName;
-				byteCode.put(localname, new ByteCode(localname, entry.getName(), baos, jar, man));
+				byteCode.put(localname, new ByteCode(localname, entry, baos, jar, man));
                 // Keep a set of jar names so we can do multiple-resource lookup by name
                 // as in findResources().
                 jarNames.add(jar);
@@ -609,7 +618,7 @@ public class JarClassLoader extends ClassLoader implements IProperties {
                 // to define wins.  
                 if (alreadyCached(entryName, jar, baos)) return;
 
-                byteCode.put(entryName, new ByteCode(entryName, entry.getName(), baos, jar, man));
+                byteCode.put(entryName, new ByteCode(entryName, entry, baos, jar, man));
                 VERBOSE("cached bytes for entry name " + entryName);
                 
             }
@@ -916,6 +925,23 @@ public class JarClassLoader extends ClassLoader implements IProperties {
         }
         VERBOSE("getByteStream(" + resource + ") -> " + result);
         return result;
+    }
+
+    public long getLastModified(String resource) {
+        resource = canon(resource);
+        // Look up resolving first.  This allows jar-local 
+        // resolution to take place.
+        ByteCode bytecode = (ByteCode)byteCode.get(resolve(resource));
+        if (bytecode == null) {
+            // Try again with an unresolved name.
+            bytecode = (ByteCode)byteCode.get(resource);
+        }
+
+        if (bytecode != null) {
+            return bytecode.lastModified;
+        } else {
+            return 0;
+        }
     }
     
     /**
