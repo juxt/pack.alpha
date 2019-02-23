@@ -21,11 +21,11 @@
         (lib-map/lib-jars lib-map))
 
       (map
-        (fn [{:keys [path lib]}]
+        (fn [{:keys [path lib] :as all}]
           {:paths (vfs/files-path
                     (file-seq (io/file path))
                     (io/file path))
-           :path ["lib" (format "%s.jar" (elodin/directory-name))]})
+           :path ["lib" (format "%s.jar" (elodin/directory-name all))]})
         (lib-map/lib-dirs lib-map))
 
       (mapcat
