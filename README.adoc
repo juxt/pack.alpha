@@ -171,12 +171,37 @@ WARNING: This has been removed due to my own licensing concerns about co-locatin
 
 === Skinny JAR
 
-[source,clojure]
-.Example
+Output a classpath, or subset of it, into directories or jars.
+
+[source]
 ----
+Usage: clj -m mach.pack.alpha.skinny [options]
+
+Options:
+      --no-libs                            Skip lib outputs
+      --no-project                         Skip project outputs
+      --lib-dir PATH       target/lib      Where to place the output libraries
+      --lib-type STRING    :jar            Lib type format to use, keep or jar. Keep will keep in original format (jar or dir)
+      --project-path PATH  target/app.jar  Where to place the project output, if it ends with .jar then the project will automatically output as a jar also.
+  -A ALIASES                               Concatenated aliases of any kind, ex: -A:dev:mem
+  -R ALIASES                               Concatenated resolve-deps aliases, ex: -R:bench:1.9
+  -C ALIASES                               Concatenated make-classpath aliases, ex: -C:dev
+  -e, --extra-path STRING                  Add directory to classpath for building. Same as :extra-paths
+  -h, --help                               show this help
+----
+
+[source,shell]
+.Put the entire classpath into jars and run from the filesystem
+====
 $ clj -A:pack mach.pack.alpha.skinny
 $ java -cp "target/app.jar:target/lib/*" clojure.main
-----
+====
+
+[source,shell]
+.Output only project files into a single jar
+====
+$ clj -A:pack mach.pack.alpha.skinny --no-libs
+====
 
 ==== Uploading to Clojars (or Maven)
 
