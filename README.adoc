@@ -190,17 +190,21 @@ Options:
   -h, --help                               show this help
 ----
 
-[source,shell]
 .Put the entire classpath into jars and run from the filesystem
-====
-$ clj -A:pack mach.pack.alpha.skinny
-$ java -cp "target/app.jar:target/lib/*" clojure.main
 ====
 
 [source,shell]
+$ clj -A:pack mach.pack.alpha.skinny
+$ java -cp "target/app.jar:target/lib/*" clojure.main
+
+====
+
 .Output only project files into a single jar
 ====
+
+[source,shell]
 $ clj -A:pack mach.pack.alpha.skinny --no-libs
+
 ====
 
 ==== Uploading to Clojars (or Maven)
