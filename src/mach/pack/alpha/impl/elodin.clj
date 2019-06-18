@@ -62,12 +62,18 @@
             (re-seq interpolation-re s)
             args)))
 
+(defn- escape-version
+  [version]
+  (string/escape version {\/ \_
+                          \\ \_}))
+
 (defn versioned-lib
   [{:keys [lib] :as all}]
   (<< "%{__}${__}$"
       (namespace lib)
       (name lib)
-      (or ((some-fn :mvn/version :sha) all))))
+      (some-> ((some-fn :mvn/version :sha) all)
+              escape-version)))
 
 (defn directory-unique
   [{:keys [path deps/root]}]
