@@ -53,6 +53,7 @@
 
 (defn -main
   [& args]
+  (println "[trace] Arguments are: " (prn-str args))
   (let [{{:keys [help main]
           :as options} :options
          [jar-location] :arguments
