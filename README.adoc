@@ -259,3 +259,10 @@ Options:
   -e, --extra-path STRING                                 Add directory to classpath for building. Same as :extra-paths
   -h, --help                                              show this help
 ----
+
+For example, to deploy to Google Container Registry, first perform link:https://cloud.google.com/container-registry/docs/advanced-authentication[authentication] and then specify registry, repository and tag in the image name:
+
+[source]
+----
+clj -A:pack mach.pack.alpha.jib --image-name eu.gcr.io/my-example-project/my-app:1234 --image-type registry -m my.main
+----
