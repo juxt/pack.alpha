@@ -238,3 +238,24 @@ Future calls to `pom.xml` won't change them back.
 ----
 mvn deploy:deploy-file -Dfile=my-cool-lib.jar -DrepositoryId=clojars -Durl=https://clojars.org/repo -DpomFile=pom.xml
 ----
+
+=== Docker image
+
+Create a Docker image via link:https://github.com/GoogleContainerTools/jib[Jib]. Supports building to local Docker daemon (`--image-type docker`), tarball (`--image-type tar`) and uploading to Docker registries authenticated via `$USER_HOME/.docker/config.json` (`--image-type registry`).
+
+[source]
+----
+Usage: clj -m mach.pack.alpha.jib [options]
+
+Options:
+      --image-name NAME                                   Name of the image
+      --image-type TYPE        :docker                    Type of the image, one of: tar, registry, docker
+      --tar-file FILE                                     Tarball file name
+      --base-image BASE-IMAGE  gcr.io/distroless/java:11  Base Docker image to use
+  -m, --main SYMBOL                                       Main namespace
+  -A ALIASES                                              Concatenated aliases of any kind, ex: -A:dev:mem
+  -R ALIASES                                              Concatenated resolve-deps aliases, ex: -R:bench:1.9
+  -C ALIASES                                              Concatenated make-classpath aliases, ex: -C:dev
+  -e, --extra-path STRING                                 Add directory to classpath for building. Same as :extra-paths
+  -h, --help                                              show this help
+----
