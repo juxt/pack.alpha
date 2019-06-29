@@ -1,5 +1,7 @@
 (ns mach.pack.alpha.jib
   (:require [mach.pack.alpha.impl.tools-deps :as tools-deps]
+            [mach.pack.alpha.impl.lib-map :as lib-map]
+            [mach.pack.alpha.impl.elodin :as elodin]
             [clojure.string :as str]
             [clojure.tools.cli :as cli])
   (:import (com.google.cloud.tools.jib.api Jib AbsoluteUnixPath)
@@ -15,34 +17,80 @@
 (def string-array (into-array String []))
 (def target-dir "/home/app")
 
+(defn unique-base-path
+  "Creates a unique string from a path by joining path elements with `-`.
+
+  Used for creating base directory for project paths such that it won't clash with library directories."
+  [path]
+  (->> path
+       (.iterator)
+       (iterator-seq)
+       (map str)
+       (str/join "-")))
+
 (defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir main]}]
   (println "Building" image-name)
-  (-> (Jib/from base-image)
-      (.addLayer (into []
-                       (map #(Paths/get % string-array))
-                       (mapcat :paths (vals lib-map)))
-                 (AbsoluteUnixPath/get target-dir))
-      (.addLayer (-> (reduce (fn [acc project-path]
-                               (let [path (Paths/get project-path string-array)]
-                                 (if (Files/exists path (into-array LinkOption []))
-                                   (.addEntryRecursive acc
-                                                       path
-                                                       (AbsoluteUnixPath/get (str target-dir "/" project-path)))
-                                   acc)))
-                             (LayerConfiguration/builder)
-                             paths)
-                     (.build)))
-      (.setEntrypoint (into-array String ["java"
-                                          "-cp" (str/join ":" (cons (str target-dir "/*")
-                                                                    (map #(str target-dir "/" %) paths)))
-                                          "clojure.main" "-m" main]))
-      (.containerize (Containerizer/to (case image-type
-                                         :docker (DockerDaemonImage/named image-name)
-                                         :tar (-> (TarImage/named image-name)
-                                                  (.saveTo (Paths/get tar-file string-array)))
-                                         :registry (-> (RegistryImage/named image-name)
-                                                       (.addCredentialRetriever (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
-                                                                                    (.dockerConfig)))))))))
+  (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
+                                 (let [container-path (AbsoluteUnixPath/get (str target-dir
+                                                                                 "/"
+                                                                                 (elodin/versioned-lib all)
+                                                                                 ".jar"))]
+                                   (-> acc
+                                       (update :builder #(.addEntry %
+                                                                    (Paths/get path string-array)
+                                                                    container-path))
+                                       (update :container-paths conj container-path))))
+                               {:builder (-> (LayerConfiguration/builder)
+                                             (.setName "library jars"))
+                                :container-paths nil}
+                               (lib-map/lib-jars lib-map))
+        lib-dirs-layer (reduce (fn [acc {:keys [path] :as all}]
+                                 (let [container-path (AbsoluteUnixPath/get (str target-dir
+                                                                                 "/"
+                                                                                 (elodin/versioned-lib all)
+                                                                                 "-"
+                                                                                 (elodin/directory-unique all)))]
+                                   (-> acc
+                                       (update :builder #(.addEntryRecursive %
+                                                                             (Paths/get path string-array)
+                                                                             container-path))
+                                       (update :container-paths conj container-path))))
+                               {:builder (-> (LayerConfiguration/builder)
+                                             (.setName "library directories"))
+                                :container-paths nil}
+                               (lib-map/lib-dirs lib-map))
+        project-dirs-layer (reduce (fn [acc project-path]
+                                     (let [path (Paths/get project-path string-array)]
+                                       (if (Files/exists path (into-array LinkOption []))
+                                         (let [container-path (AbsoluteUnixPath/get (str target-dir
+                                                                                         "/"
+                                                                                         (unique-base-path path)))]
+                                           (-> acc
+                                               (update :builder #(.addEntryRecursive %
+                                                                                     path
+                                                                                     container-path))
+                                               (update :container-paths conj container-path)))
+                                         acc)))
+                                   {:builder (-> (LayerConfiguration/builder)
+                                                 (.setName "project directories"))
+                                    :container-paths nil}
+                                   paths)]
+    (-> (Jib/from base-image)
+        (.addLayer (-> lib-jars-layer :builder (.build)))
+        (.addLayer (-> lib-dirs-layer :builder (.build)))
+        (.addLayer (-> project-dirs-layer :builder (.build)))
+        (.setEntrypoint (into-array String ["java"
+                                            "-cp" (str/join ":" (map str (mapcat :container-paths [lib-jars-layer
+                                                                                                   lib-dirs-layer
+                                                                                                   project-dirs-layer])))
+                                            "clojure.main" "-m" main]))
+        (.containerize (Containerizer/to (case image-type
+                                           :docker (DockerDaemonImage/named image-name)
+                                           :tar (-> (TarImage/named image-name)
+                                                    (.saveTo (Paths/get tar-file string-array)))
+                                           :registry (-> (RegistryImage/named image-name)
+                                                         (.addCredentialRetriever (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
+                                                                                      (.dockerConfig))))))))))
 
 (def image-types #{:docker :registry :tar})
 
