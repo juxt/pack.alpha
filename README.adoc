@@ -252,6 +252,8 @@ Options:
       --image-type TYPE        :docker                    Type of the image, one of: tar, registry, docker
       --tar-file FILE                                     Tarball file name
       --base-image BASE-IMAGE  gcr.io/distroless/java:11  Base Docker image to use
+  -q, --quiet                                             Don't print a progress bar
+  -v, --verbose                                           Print status of image building
   -m, --main SYMBOL                                       Main namespace
   -A ALIASES                                              Concatenated aliases of any kind, ex: -A:dev:mem
   -R ALIASES                                              Concatenated resolve-deps aliases, ex: -R:bench:1.9

@@ -3,7 +3,8 @@
             [mach.pack.alpha.impl.lib-map :as lib-map]
             [mach.pack.alpha.impl.elodin :as elodin]
             [clojure.string :as str]
-            [clojure.tools.cli :as cli])
+            [clojure.tools.cli :as cli]
+            [progrock.core :as pr])
   (:import (com.google.cloud.tools.jib.api Jib AbsoluteUnixPath)
            (java.nio.file Paths Files LinkOption)
            (com.google.cloud.tools.jib.api LayerConfiguration
@@ -11,8 +12,11 @@
                                            DockerDaemonImage
                                            TarImage
                                            RegistryImage
-                                           ImageReference)
-           (com.google.cloud.tools.jib.frontend CredentialRetrieverFactory)))
+                                           ImageReference
+                                           LogEvent)
+           (com.google.cloud.tools.jib.frontend CredentialRetrieverFactory)
+           (com.google.cloud.tools.jib.event.events ProgressEvent TimerEvent)
+           (java.util.function Consumer)))
 
 (def string-array (into-array String []))
 (def target-dir "/home/app")
@@ -28,8 +32,18 @@
        (map str)
        (str/join "-")))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir main]}]
-  (println "Building" image-name)
+(defn progress-bar-consumer []
+  (let [progress-bar (atom (pr/progress-bar 100))]
+    (reify Consumer
+      (accept [this t]
+        (let [progress (* (-> t (.getAllocation) (.getFractionOfRoot))
+                          (.getUnits t))
+              bar (swap! progress-bar pr/tick (Math/round (* progress 100)))]
+          (pr/print bar {:format "[:bar] :progress/:total  :elapsed"}))))))
+
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir quiet verbose main]}]
+  (when-not quiet
+    (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
                                  (let [container-path (AbsoluteUnixPath/get (str target-dir
                                                                                  "/"
@@ -84,13 +98,20 @@
                                                                                                    lib-dirs-layer
                                                                                                    project-dirs-layer])))
                                             "clojure.main" "-m" main]))
-        (.containerize (Containerizer/to (case image-type
-                                           :docker (DockerDaemonImage/named image-name)
-                                           :tar (-> (TarImage/named image-name)
-                                                    (.saveTo (Paths/get tar-file string-array)))
-                                           :registry (-> (RegistryImage/named image-name)
-                                                         (.addCredentialRetriever (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
-                                                                                      (.dockerConfig))))))))))
+        (.containerize (cond-> (Containerizer/to (case image-type
+                                                   :docker (DockerDaemonImage/named image-name)
+                                                   :tar (-> (TarImage/named image-name)
+                                                            (.saveTo (Paths/get tar-file string-array)))
+                                                   :registry (-> (RegistryImage/named image-name)
+                                                                 (.addCredentialRetriever (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
+                                                                                              (.dockerConfig))))))
+                         (not quiet) (.addEventHandler ProgressEvent (progress-bar-consumer))
+                         verbose (.addEventHandler LogEvent (reify Consumer
+                                                              (accept [this t]
+                                                                (println (.getMessage t)))))
+                         verbose (.addEventHandler TimerEvent (reify Consumer
+                                                                (accept [this t]
+                                                                  (println (.getDescription t))))))))))
 
 (def image-types #{:docker :registry :tar})
 
@@ -104,6 +125,10 @@
     [nil "--tar-file FILE" "Tarball file name"]
     [nil "--base-image BASE-IMAGE" "Base Docker image to use"
      :default "gcr.io/distroless/java:11"]
+    ["-q" "--quiet" "Don't print a progress bar nor a start of build message"
+     :default false]
+    ["-v" "--verbose" "Print status of image building"
+     :default false]
     ["-m" "--main SYMBOL" "Main namespace"]]
    tools-deps/cli-spec
    [["-h" "--help" "show this help"]]))
@@ -131,6 +156,8 @@
                  image-type
                  tar-file
                  base-image
+                 quiet
+                 verbose
                  main]
           :as options} :options
          :as parsed-opts} (cli/parse-opts args cli-options)
@@ -148,4 +175,6 @@
             :image-name image-name
             :image-type image-type
             :tar-file tar-file
+            :quiet quiet
+            :verbose verbose
             :main main}))))
