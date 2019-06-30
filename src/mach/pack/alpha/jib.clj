@@ -19,7 +19,7 @@
            (java.util.function Consumer)))
 
 (def string-array (into-array String []))
-(def target-dir "/home/app")
+(def target-dir "/app")
 
 (defn unique-base-path
   "Creates a unique string from a path by joining path elements with `-`.
