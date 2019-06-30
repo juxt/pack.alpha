@@ -41,7 +41,7 @@
               bar (swap! progress-bar pr/tick (Math/round (* progress 100)))]
           (pr/print bar {:format "[:bar] :progress/:total  :elapsed"}))))))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir quiet verbose main]}]
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include quiet verbose main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -89,7 +89,9 @@
                                                  (.setName "project directories"))
                                     :container-paths nil}
                                    paths)]
-    (-> (Jib/from base-image)
+    (-> (cond-> (Jib/from base-image)
+          include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
+                             (AbsoluteUnixPath/get (last (.split include ":")))))
         (.addLayer (-> lib-jars-layer :builder (.build)))
         (.addLayer (-> lib-dirs-layer :builder (.build)))
         (.addLayer (-> project-dirs-layer :builder (.build)))
@@ -125,6 +127,7 @@
     [nil "--tar-file FILE" "Tarball file name"]
     [nil "--base-image BASE-IMAGE" "Base Docker image to use"
      :default "gcr.io/distroless/java:11"]
+    [nil "--include [src:]dest" "Include file or directory, relative to container root"]
     ["-q" "--quiet" "Don't print a progress bar nor a start of build message"
      :default false]
     ["-v" "--verbose" "Print status of image building"
@@ -156,6 +159,7 @@
                  image-type
                  tar-file
                  base-image
+                 include
                  quiet
                  verbose
                  main]
@@ -175,6 +179,7 @@
             :image-name image-name
             :image-type image-type
             :tar-file tar-file
+            :include include
             :quiet quiet
             :verbose verbose
             :main main}))))
