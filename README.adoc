@@ -25,10 +25,10 @@ NOTE: This isn't infallible.  Please let me know if I break your indentation.
 
 [source,clojure]
 ----
-$ clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "dccf2134bcf03726a9465d2b9997c42e5cd91bff"}}}' -m mach.pack.alpha.inject '81b9e47d992b17aa3e3af1a47aed1f0287ebe9b8'
+$ clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "dccf2134bcf03726a9465d2b9997c42e5cd91bff"}}}' -m mach.pack.alpha.inject '2769a6224bfb938e777906ea311b3daf7d2220f5'
 ----
 
-TIP: Latest stable sha is `81b9e47d992b17aa3e3af1a47aed1f0287ebe9b8`.
+TIP: Latest stable sha is `2769a6224bfb938e777906ea311b3daf7d2220f5`.
 
 The following examples assume you have run this.
 
@@ -221,7 +221,7 @@ I highly recommend putting this in a Makefile or shell script.
 +
 [source,bash]
 ----
-clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "8acf80dd4d6e5173585f5c6fec7af28a310f3ed7"}}}' -m mach.pack.alpha.skinny --no-libs --project-path my-cool-lib.jar
+clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "2769a6224bfb938e777906ea311b3daf7d2220f5"}}}' -m mach.pack.alpha.skinny --no-libs --project-path my-cool-lib.jar
 ----
 
 . You will also need a pom.xml, you can generate one with `clojure`:
