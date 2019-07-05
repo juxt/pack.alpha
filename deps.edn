@@ -3,4 +3,6 @@
         me.raynes/fs {:mvn/version "1.4.6"}
         co.paralleluniverse/capsule {:mvn/version "1.0.3"}
         org.clojure/tools.cli {:mvn/version "0.4.1"}
-        rewrite-clj {:mvn/version "0.6.0"}}}
+        rewrite-clj {:mvn/version "0.6.0"}
+        com.google.cloud.tools/jib-core {:mvn/version "0.10.0"}
+        progrock {:mvn/version "0.1.2"}}}
