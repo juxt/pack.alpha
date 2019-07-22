@@ -167,7 +167,7 @@
          :as parsed-opts} (cli/parse-opts args cli-options)
         errors (:errors parsed-opts)]
     (cond
-      (or help (nil? image-name) (and (= :tar image-type) (nil? tar-file)))
+      (or help (nil? image-name) (and (= :tar image-type) (nil? tar-file)) (nil? main))
       (println (usage (:summary parsed-opts)))
       errors
       (println (error-msg errors))
