@@ -47,7 +47,13 @@
           containerizer
           tags))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags quiet verbose main]}]
+(defn add-labels [jib-container-builder labels]
+  (reduce (fn [acc [key value]]
+            (.addLabel acc key value))
+          jib-container-builder
+          labels))
+
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels quiet verbose main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -97,7 +103,8 @@
                                    paths)]
     (-> (cond-> (Jib/from base-image)
           include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
-                             (AbsoluteUnixPath/get (last (.split include ":")))))
+                             (AbsoluteUnixPath/get (last (.split include ":"))))
+          (seq labels) (add-labels labels))
         (.addLayer (-> lib-jars-layer :builder (.build)))
         (.addLayer (-> lib-dirs-layer :builder (.build)))
         (.addLayer (-> project-dirs-layer :builder (.build)))
@@ -137,6 +144,8 @@
     [nil "--include [src:]dest" "Include file or directory, relative to container root"]
     [nil "--additional-tag TAG" "Additional tag for the image, e.g latest. Repeat to add multiple tags"
      :assoc-fn #(update %1 %2 conj %3)]
+    [nil "--label LABEL=VALUE" "Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels."
+     :assoc-fn #(update %1 %2 conj (str/split %3 #"="))]
     ["-q" "--quiet" "Don't print a progress bar nor a start of build message"
      :default false]
     ["-v" "--verbose" "Print status of image building"
@@ -170,6 +179,7 @@
                  base-image
                  include
                  additional-tag
+                 label
                  quiet
                  verbose
                  main]
@@ -192,6 +202,7 @@
             :tar-file tar-file
             :include include
             :additional-tags additional-tag
+            :labels label
             :quiet quiet
             :verbose verbose
             :main main}))))
