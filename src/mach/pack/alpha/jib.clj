@@ -136,7 +136,6 @@
   (concat
    [[nil "--image-name NAME" "Name of the image"]
     [nil "--image-type TYPE" (str "Type of the image, one of: " (str/join ", " (map name image-types)))
-     :parse-fn keyword
      :validate [image-types (str "Supported image types: " (str/join ", " (map name image-types)))]
      :default "docker"]
     [nil "--tar-file FILE" "Tarball file name"]
