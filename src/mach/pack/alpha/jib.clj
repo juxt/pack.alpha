@@ -53,7 +53,7 @@
           jib-container-builder
           labels))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels quiet verbose main]}]
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user quiet verbose main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -104,7 +104,8 @@
     (-> (cond-> (Jib/from base-image)
           include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
                              (AbsoluteUnixPath/get (last (.split include ":"))))
-          (seq labels) (add-labels labels))
+          (seq labels) (add-labels labels)
+          user (.setUser user))
         (.addLayer (-> lib-jars-layer :builder (.build)))
         (.addLayer (-> lib-dirs-layer :builder (.build)))
         (.addLayer (-> project-dirs-layer :builder (.build)))
@@ -146,6 +147,7 @@
      :assoc-fn #(update %1 %2 conj %3)]
     [nil "--label LABEL=VALUE" "Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels."
      :assoc-fn #(update %1 %2 conj (str/split %3 #"="))]
+    [nil "--user USER" "Set the user and group to run the container as. Valid formats are: user, uid, user:group, uid:gid, uid:group, user:gid"]
     ["-q" "--quiet" "Don't print a progress bar nor a start of build message"
      :default false]
     ["-v" "--verbose" "Print status of image building"
@@ -180,6 +182,7 @@
                  include
                  additional-tag
                  label
+                 user
                  quiet
                  verbose
                  main]
@@ -203,6 +206,7 @@
             :include include
             :additional-tags additional-tag
             :labels label
+            :user user
             :quiet quiet
             :verbose verbose
             :main main}))))
