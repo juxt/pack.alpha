@@ -41,7 +41,13 @@
               bar (swap! progress-bar pr/tick (Math/round (* progress 100)))]
           (pr/print bar {:format "[:bar] :progress/:total  :elapsed"}))))))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include quiet verbose main]}]
+(defn add-additional-tags [containerizer tags]
+  (reduce (fn [acc tag]
+            (.withAdditionalTag acc tag))
+          containerizer
+          tags))
+
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags quiet verbose main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -107,6 +113,7 @@
                                                    :registry (-> (RegistryImage/named image-name)
                                                                  (.addCredentialRetriever (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
                                                                                               (.dockerConfig))))))
+                         (seq additional-tags) (add-additional-tags additional-tags)
                          (not quiet) (.addEventHandler ProgressEvent (progress-bar-consumer))
                          verbose (.addEventHandler LogEvent (reify Consumer
                                                               (accept [this t]
@@ -128,6 +135,8 @@
     [nil "--base-image BASE-IMAGE" "Base Docker image to use"
      :default "gcr.io/distroless/java:11"]
     [nil "--include [src:]dest" "Include file or directory, relative to container root"]
+    [nil "--additional-tag TAG" "Additional tag for the image, e.g latest. Repeat to add multiple tags"
+     :assoc-fn #(update %1 %2 conj %3)]
     ["-q" "--quiet" "Don't print a progress bar nor a start of build message"
      :default false]
     ["-v" "--verbose" "Print status of image building"
@@ -160,6 +169,7 @@
                  tar-file
                  base-image
                  include
+                 additional-tag
                  quiet
                  verbose
                  main]
@@ -181,6 +191,7 @@
             :image-type image-type
             :tar-file tar-file
             :include include
+            :additional-tags additional-tag
             :quiet quiet
             :verbose verbose
             :main main}))))
