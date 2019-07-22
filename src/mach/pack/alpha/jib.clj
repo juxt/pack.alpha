@@ -137,7 +137,9 @@
    [[nil "--image-name NAME" "Name of the image"]
     [nil "--image-type TYPE" (str "Type of the image, one of: " (str/join ", " (map name image-types)))
      :validate [image-types (str "Supported image types: " (str/join ", " (map name image-types)))]
-     :default "docker"]
+     :parse-fn keyword
+     :default :docker
+     :default-desc (name :docker)]
     [nil "--tar-file FILE" "Tarball file name"]
     [nil "--base-image BASE-IMAGE" "Base Docker image to use"
      :default "gcr.io/distroless/java:11"]
@@ -187,8 +189,7 @@
                  main]
           :as options} :options
          :as  parsed-opts} (cli/parse-opts args cli-options)
-        errors (:errors parsed-opts)
-        image-type (keyword image-type)]
+        errors (:errors parsed-opts)]
     (cond
       (or help (nil? image-name) (and (= :tar image-type) (nil? tar-file)) (nil? main))
       (println (usage (:summary parsed-opts)))
