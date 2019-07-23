@@ -249,10 +249,13 @@ Usage: clj -m mach.pack.alpha.jib [options]
 
 Options:
       --image-name NAME                                   Name of the image
-      --image-type TYPE        :docker                    Type of the image, one of: tar, registry, docker
+      --image-type TYPE        docker                     Type of the image, one of: tar, registry, docker
       --tar-file FILE                                     Tarball file name
       --base-image BASE-IMAGE  gcr.io/distroless/java:11  Base Docker image to use
       --include [src:]dest                                Include file or directory, relative to container root
+      --additional-tag TAG                                Additional tag for the image, e.g latest. Repeat to add multiple tags
+      --label LABEL=VALUE                                 Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels.
+      --user USER                                         Set the user and group to run the container as. Valid formats are: user, uid, user:group, uid:gid, uid:group, user:gid
   -q, --quiet                                             Don't print a progress bar
   -v, --verbose                                           Print status of image building
   -m, --main SYMBOL                                       Main namespace

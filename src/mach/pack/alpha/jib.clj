@@ -41,7 +41,19 @@
               bar (swap! progress-bar pr/tick (Math/round (* progress 100)))]
           (pr/print bar {:format "[:bar] :progress/:total  :elapsed"}))))))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include quiet verbose main]}]
+(defn add-additional-tags [containerizer tags]
+  (reduce (fn [acc tag]
+            (.withAdditionalTag acc tag))
+          containerizer
+          tags))
+
+(defn add-labels [jib-container-builder labels]
+  (reduce (fn [acc [key value]]
+            (.addLabel acc key value))
+          jib-container-builder
+          labels))
+
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user quiet verbose main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -91,7 +103,9 @@
                                    paths)]
     (-> (cond-> (Jib/from base-image)
           include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
-                             (AbsoluteUnixPath/get (last (.split include ":")))))
+                             (AbsoluteUnixPath/get (last (.split include ":"))))
+          (seq labels) (add-labels labels)
+          user (.setUser user))
         (.addLayer (-> lib-jars-layer :builder (.build)))
         (.addLayer (-> lib-dirs-layer :builder (.build)))
         (.addLayer (-> project-dirs-layer :builder (.build)))
@@ -107,6 +121,7 @@
                                                    :registry (-> (RegistryImage/named image-name)
                                                                  (.addCredentialRetriever (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
                                                                                               (.dockerConfig))))))
+                         (seq additional-tags) (add-additional-tags additional-tags)
                          (not quiet) (.addEventHandler ProgressEvent (progress-bar-consumer))
                          verbose (.addEventHandler LogEvent (reify Consumer
                                                               (accept [this t]
@@ -121,13 +136,19 @@
   (concat
    [[nil "--image-name NAME" "Name of the image"]
     [nil "--image-type TYPE" (str "Type of the image, one of: " (str/join ", " (map name image-types)))
-     :parse-fn keyword
      :validate [image-types (str "Supported image types: " (str/join ", " (map name image-types)))]
-     :default :docker]
+     :parse-fn keyword
+     :default :docker
+     :default-desc (name :docker)]
     [nil "--tar-file FILE" "Tarball file name"]
     [nil "--base-image BASE-IMAGE" "Base Docker image to use"
      :default "gcr.io/distroless/java:11"]
     [nil "--include [src:]dest" "Include file or directory, relative to container root"]
+    [nil "--additional-tag TAG" "Additional tag for the image, e.g latest. Repeat to add multiple tags"
+     :assoc-fn #(update %1 %2 conj %3)]
+    [nil "--label LABEL=VALUE" "Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels."
+     :assoc-fn #(update %1 %2 conj (str/split %3 #"="))]
+    [nil "--user USER" "Set the user and group to run the container as. Valid formats are: user, uid, user:group, uid:gid, uid:group, user:gid"]
     ["-q" "--quiet" "Don't print a progress bar nor a start of build message"
      :default false]
     ["-v" "--verbose" "Print status of image building"
@@ -160,14 +181,17 @@
                  tar-file
                  base-image
                  include
+                 additional-tag
+                 label
+                 user
                  quiet
                  verbose
                  main]
           :as options} :options
-         :as parsed-opts} (cli/parse-opts args cli-options)
+         :as  parsed-opts} (cli/parse-opts args cli-options)
         errors (:errors parsed-opts)]
     (cond
-      (or help (nil? image-name) (and (= :tar image-type) (nil? tar-file)))
+      (or help (nil? image-name) (and (= :tar image-type) (nil? tar-file)) (nil? main))
       (println (usage (:summary parsed-opts)))
       errors
       (println (error-msg errors))
@@ -180,6 +204,9 @@
             :image-type image-type
             :tar-file tar-file
             :include include
+            :additional-tags additional-tag
+            :labels label
+            :user user
             :quiet quiet
             :verbose verbose
             :main main}))))
