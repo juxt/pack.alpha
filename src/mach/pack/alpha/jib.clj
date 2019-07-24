@@ -19,7 +19,8 @@
            (com.google.cloud.tools.jib.frontend CredentialRetrieverFactory)
            (com.google.cloud.tools.jib.event.events ProgressEvent TimerEvent)
            (java.util.function Consumer)
-           (java.util Optional)))
+           (java.util Optional)
+           (java.time Instant)))
 
 (def string-array (into-array String []))
 (def target-dir "/app")
@@ -109,6 +110,7 @@
                              (AbsoluteUnixPath/get (last (.split include ":"))))
           (seq labels) (add-labels labels)
           user (.setUser user))
+        (.setCreationTime (Instant/now))
         (.addLayer (-> lib-jars-layer :builder (.build)))
         (.addLayer (-> lib-dirs-layer :builder (.build)))
         (.addLayer (-> project-dirs-layer :builder (.build)))
