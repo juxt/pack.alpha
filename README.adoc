@@ -256,6 +256,8 @@ Options:
       --additional-tag TAG                                Additional tag for the image, e.g latest. Repeat to add multiple tags
       --label LABEL=VALUE                                 Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels.
       --user USER                                         Set the user and group to run the container as. Valid formats are: user, uid, user:group, uid:gid, uid:group, user:gid
+      --registry-username USER                            Set the username to use when deploying to registry, e.g. gitlab-ci-token.
+      --registry-password PASSWORD                        Set the password to use when deploying to registry, e.g. ${CI_JOB_TOKEN}.
   -q, --quiet                                             Don't print a progress bar
   -v, --verbose                                           Print status of image building
   -m, --main SYMBOL                                       Main namespace

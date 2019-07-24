@@ -13,10 +13,13 @@
                                            TarImage
                                            RegistryImage
                                            ImageReference
-                                           LogEvent)
+                                           LogEvent
+                                           Credential
+                                           CredentialRetriever)
            (com.google.cloud.tools.jib.frontend CredentialRetrieverFactory)
            (com.google.cloud.tools.jib.event.events ProgressEvent TimerEvent)
-           (java.util.function Consumer)))
+           (java.util.function Consumer)
+           (java.util Optional)))
 
 (def string-array (into-array String []))
 (def target-dir "/app")
@@ -53,7 +56,7 @@
           jib-container-builder
           labels))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user quiet verbose main]}]
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user registry-username registry-password quiet verbose main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -119,8 +122,13 @@
                                                    :tar (-> (TarImage/named image-name)
                                                             (.saveTo (Paths/get tar-file string-array)))
                                                    :registry (-> (RegistryImage/named image-name)
-                                                                 (.addCredentialRetriever (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
-                                                                                              (.dockerConfig))))))
+                                                                 (.addCredentialRetriever (or
+                                                                                            (when (and (string? registry-username) (string? registry-password))
+                                                                                              (reify CredentialRetriever
+                                                                                                (retrieve [_]
+                                                                                                  (Optional/of (Credential/from registry-username registry-password)))))
+                                                                                            (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
+                                                                                                (.dockerConfig)))))))
                          (seq additional-tags) (add-additional-tags additional-tags)
                          (not quiet) (.addEventHandler ProgressEvent (progress-bar-consumer))
                          verbose (.addEventHandler LogEvent (reify Consumer
@@ -149,6 +157,8 @@
     [nil "--label LABEL=VALUE" "Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels."
      :assoc-fn #(update %1 %2 conj (str/split %3 #"="))]
     [nil "--user USER" "Set the user and group to run the container as. Valid formats are: user, uid, user:group, uid:gid, uid:group, user:gid"]
+    [nil "--registry-username USER" "Set the username to use when deploying to registry, e.g. gitlab-ci-token."]
+    [nil "--registry-password PASSWORD" "Set the password to use when deploying to registry, e.g. ${CI_JOB_TOKEN}."]
     ["-q" "--quiet" "Don't print a progress bar nor a start of build message"
      :default false]
     ["-v" "--verbose" "Print status of image building"
@@ -184,6 +194,8 @@
                  additional-tag
                  label
                  user
+                 registry-username
+                 registry-password
                  quiet
                  verbose
                  main]
@@ -207,6 +219,8 @@
             :additional-tags additional-tag
             :labels label
             :user user
+            :registry-username registry-username
+            :registry-password registry-password
             :quiet quiet
             :verbose verbose
             :main main}))))
