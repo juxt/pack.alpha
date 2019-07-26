@@ -274,3 +274,5 @@ For example, to deploy to Google Container Registry, first perform link:https://
 ----
 clj -A:pack mach.pack.alpha.jib --image-name eu.gcr.io/my-example-project/my-app:1234 --image-type registry -m my.main
 ----
+
+In order to pass Java system properties to the running container, `JAVA_TOOL_OPTIONS` environment variable can be used. See example in link:https://github.com/GoogleContainerTools/jib/blob/master/docs/faq.md#jvm-flags[Jib FAQ].
