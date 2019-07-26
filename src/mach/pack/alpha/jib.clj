@@ -57,7 +57,13 @@
           jib-container-builder
           labels))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user registry-username registry-password quiet verbose main]}]
+(defn explicit-credentials [username password]
+  (when (and (string? username) (string? password))
+    (reify CredentialRetriever
+      (retrieve [_]
+        (Optional/of (Credential/from username password))))))
+
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user to-registry-username to-registry-password from-registry-username from-registry-password quiet verbose main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -104,8 +110,13 @@
                                    {:builder (-> (LayerConfiguration/builder)
                                                  (.setName "project directories"))
                                     :container-paths nil}
-                                   paths)]
-    (-> (cond-> (Jib/from base-image)
+                                   paths)
+        base-image-with-creds (-> (RegistryImage/named ^String base-image)
+                                  (.addCredentialRetriever (or
+                                                             (explicit-credentials from-registry-username from-registry-password)
+                                                             (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image))
+                                                                 (.dockerConfig)))))]
+    (-> (cond-> (Jib/from base-image-with-creds)
           include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
                              (AbsoluteUnixPath/get (last (.split include ":"))))
           (seq labels) (add-labels labels)
@@ -125,10 +136,7 @@
                                                             (.saveTo (Paths/get tar-file string-array)))
                                                    :registry (-> (RegistryImage/named image-name)
                                                                  (.addCredentialRetriever (or
-                                                                                            (when (and (string? registry-username) (string? registry-password))
-                                                                                              (reify CredentialRetriever
-                                                                                                (retrieve [_]
-                                                                                                  (Optional/of (Credential/from registry-username registry-password)))))
+                                                                                            (explicit-credentials to-registry-username to-registry-password)
                                                                                             (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
                                                                                                 (.dockerConfig)))))))
                          (seq additional-tags) (add-additional-tags additional-tags)
@@ -159,8 +167,10 @@
     [nil "--label LABEL=VALUE" "Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels."
      :assoc-fn #(update %1 %2 conj (str/split %3 #"="))]
     [nil "--user USER" "Set the user and group to run the container as. Valid formats are: user, uid, user:group, uid:gid, uid:group, user:gid"]
-    [nil "--registry-username USER" "Set the username to use when deploying to registry, e.g. gitlab-ci-token."]
-    [nil "--registry-password PASSWORD" "Set the password to use when deploying to registry, e.g. ${CI_JOB_TOKEN}."]
+    [nil "--from-registry-username USER" "Set the username to use when pulling from registry, e.g. gitlab-ci-token."]
+    [nil "--from-registry-password PASSWORD" "Set the password to use when pulling from registry, e.g. ${CI_JOB_TOKEN}."]
+    [nil "--to-registry-username USER" "Set the username to use when deploying to registry, e.g. gitlab-ci-token."]
+    [nil "--to-registry-password PASSWORD" "Set the password to use when deploying to registry, e.g. ${CI_JOB_TOKEN}."]
     ["-q" "--quiet" "Don't print a progress bar nor a start of build message"
      :default false]
     ["-v" "--verbose" "Print status of image building"
@@ -196,8 +206,10 @@
                  additional-tag
                  label
                  user
-                 registry-username
-                 registry-password
+                 to-registry-username
+                 to-registry-password
+                 from-registry-username
+                 from-registry-password
                  quiet
                  verbose
                  main]
@@ -221,8 +233,10 @@
             :additional-tags additional-tag
             :labels label
             :user user
-            :registry-username registry-username
-            :registry-password registry-password
+            :to-registry-username to-registry-username
+            :to-registry-password to-registry-password
+            :from-registry-username from-registry-username
+            :from-registry-password from-registry-password
             :quiet quiet
             :verbose verbose
             :main main}))))
