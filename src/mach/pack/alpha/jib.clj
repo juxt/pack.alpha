@@ -126,6 +126,7 @@
         (.addLayer (-> lib-dirs-layer :builder (.build)))
         (.addLayer (-> project-dirs-layer :builder (.build)))
         (.setEntrypoint (into-array String ["java"
+                                            "-Dfile.encoding=UTF-8"
                                             "-cp" (str/join ":" (map str (mapcat :container-paths [lib-jars-layer
                                                                                                    lib-dirs-layer
                                                                                                    project-dirs-layer])))
