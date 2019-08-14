@@ -9,7 +9,9 @@
     [clojure.tools.deps.alpha :as tools.deps]
     [clojure.tools.deps.alpha.reader :as tools.deps.reader]
     ;; Lazy way of loading extensions
-    [clojure.tools.deps.alpha.script.make-classpath]))
+    [clojure.tools.deps.alpha.script.make-classpath])
+  (:import
+    [java.io File]))
 
 (defn- parse-kws
   "Parses a concatenated string of keywords into a collection of keywords
@@ -58,6 +60,25 @@
       slurp
       edn/read-string))
 
+(defn config-edn
+  []
+  (let [config-env (System/getenv "CLJ_CONFIG")
+        xdg-env (System/getenv "XDG_CONFIG_HOME")
+        home (System/getProperty "user.home")
+        config-dir (cond config-env config-env
+                         xdg-env (str xdg-env File/separator "clojure")
+                         :else (str home File/separator ".clojure"))
+        config-deps (str config-dir File/separator "deps.edn")
+        config-file (io/file config-deps)]
+    (when (.exists config-file)
+      (-> config-file
+          slurp
+          edn/read-string
+          ;; These keys are ones a user can reasonably expect to apply when
+          ;; assembling a project's build.  Notably, ones relating to a user's
+          ;; credentials can be kept out.
+          (select-keys [:mvn/repos])))))
+
 (comment
   (tools.deps/combine-aliases
     {:paths []
@@ -70,7 +91,7 @@
 ;; opts is return of cli-opts, except ::deps-path
 (defn parse-deps-map
   [deps-map {::keys [resolve-aliases makecp-aliases extra]}]
-  (let [deps-map (tools.deps.reader/merge-deps [(system-edn) deps-map])
+  (let [deps-map (tools.deps.reader/merge-deps [(system-edn) (config-edn) deps-map])
 
         resolve-args (tools.deps/combine-aliases deps-map resolve-aliases)
         cp-args (tools.deps/combine-aliases deps-map makecp-aliases)]
