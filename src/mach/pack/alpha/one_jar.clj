@@ -5,7 +5,7 @@
     [clojure.tools.cli :as cli]
     [mach.pack.alpha.impl.tools-deps :as tools-deps]
     [mach.pack.alpha.impl.elodin :as elodin]
-    [mach.pack.alpha.impl.util :refer [system-edn]]
+    [mach.pack.alpha.impl.tools-deps :refer [system-edn]]
     [mach.pack.alpha.impl.lib-map :as lib-map]
     [mach.pack.alpha.impl.vfs :as vfs]
     [me.raynes.fs :as fs])

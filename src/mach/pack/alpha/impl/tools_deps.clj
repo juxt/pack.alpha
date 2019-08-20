@@ -55,10 +55,7 @@
 
 (defn system-edn
   []
-  (-> "mach/pack/alpha/system_deps.edn"
-      io/resource
-      slurp
-      edn/read-string))
+  (tools.deps.reader/read-deps (tools.deps.reader/default-deps)))
 
 (defn config-edn
   []
