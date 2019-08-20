@@ -55,7 +55,7 @@
 
 (defn system-edn
   []
-  (tools.deps.reader/read-deps (tools.deps.reader/default-deps)))
+  (tools.deps.reader/read-deps nil))
 
 (defn config-edn
   []
