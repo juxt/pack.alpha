@@ -55,10 +55,16 @@
 
 (defn system-edn
   []
-  (-> "mach/pack/alpha/system_deps.edn"
-      io/resource
-      slurp
-      edn/read-string))
+  (let [defaults (-> "mach/pack/alpha/system_deps.edn"
+                     io/resource
+                     tools.deps.reader/slurp-deps)]
+    (if-let [clj-config (System/getenv "CLJ_CONFIG")]
+      (tools.deps.reader/merge-deps [defaults
+                                     (-> clj-config
+                                         (io/file "deps.edn")
+                                         tools.deps.reader/slurp-deps)])
+      defaults)))
+
 
 (defn config-edn
   []
