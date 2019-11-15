@@ -63,7 +63,7 @@
       (retrieve [_]
         (Optional/of (Credential/from username password))))))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user to-registry-username to-registry-password from-registry-username from-registry-password quiet verbose main]}]
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user to-registry-username to-registry-password from-registry-username from-registry-password quiet verbose extra-java-args main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -113,9 +113,9 @@
                                    paths)
         base-image-with-creds (-> (RegistryImage/named ^String base-image)
                                   (.addCredentialRetriever (or
-                                                             (explicit-credentials from-registry-username from-registry-password)
-                                                             (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image))
-                                                                 (.dockerConfig)))))]
+                                                            (explicit-credentials from-registry-username from-registry-password)
+                                                            (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image))
+                                                                (.dockerConfig)))))]
     (-> (cond-> (Jib/from base-image-with-creds)
           include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
                              (AbsoluteUnixPath/get (last (.split include ":"))))
@@ -126,22 +126,23 @@
         (.addLayer (-> lib-dirs-layer :builder (.build)))
         (.addLayer (-> project-dirs-layer :builder (.build)))
         (.setWorkingDirectory (AbsoluteUnixPath/get target-dir))
-        (.setEntrypoint (into-array String ["java"
-                                            "-Dclojure.main.report=stderr"
-                                            "-Dfile.encoding=UTF-8"
-                                            "-cp" (str/join ":" (map str (mapcat :container-paths [lib-jars-layer
-                                                                                                   lib-dirs-layer
-                                                                                                   project-dirs-layer])))
-                                            "clojure.main" "-m" main]))
+        (.setEntrypoint (into-array String (concat ["java"]
+                                                   (str/split extra-java-args #"\s+")
+                                                   ["-Dclojure.main.report=stderr"
+                                                    "-Dfile.encoding=UTF-8"
+                                                    "-cp" (str/join ":" (map str (mapcat :container-paths [lib-jars-layer
+                                                                                                           lib-dirs-layer
+                                                                                                           project-dirs-layer])))
+                                                    "clojure.main" "-m" main])))
         (.containerize (cond-> (Containerizer/to (case image-type
                                                    :docker (DockerDaemonImage/named image-name)
                                                    :tar (-> (TarImage/named image-name)
                                                             (.saveTo (Paths/get tar-file string-array)))
                                                    :registry (-> (RegistryImage/named image-name)
                                                                  (.addCredentialRetriever (or
-                                                                                            (explicit-credentials to-registry-username to-registry-password)
-                                                                                            (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
-                                                                                                (.dockerConfig)))))))
+                                                                                           (explicit-credentials to-registry-username to-registry-password)
+                                                                                           (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
+                                                                                               (.dockerConfig)))))))
                          (seq additional-tags) (add-additional-tags additional-tags)
                          (not quiet) (.addEventHandler ProgressEvent (progress-bar-consumer))
                          verbose (.addEventHandler LogEvent (reify Consumer
@@ -178,6 +179,9 @@
      :default false]
     ["-v" "--verbose" "Print status of image building"
      :default false]
+
+    [nil "--extra-java-args JAVA_ARGS" "Extra arguments to pass to the `java` command, e.g. --extra-java-args \"-Dfoo=bar -ea\""
+     :default ""]
     ["-m" "--main SYMBOL" "Main namespace"]]
    tools-deps/cli-spec
    [["-h" "--help" "show this help"]]))
@@ -215,6 +219,7 @@
                  from-registry-password
                  quiet
                  verbose
+                 extra-java-args
                  main]
           :as options} :options
          :as  parsed-opts} (cli/parse-opts args cli-options)
@@ -242,4 +247,5 @@
             :from-registry-password from-registry-password
             :quiet quiet
             :verbose verbose
+            :extra-java-args extra-java-args
             :main main}))))
