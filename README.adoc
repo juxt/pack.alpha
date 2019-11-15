@@ -261,8 +261,9 @@ Options:
       --from-registry-password PASSWORD                   Set the password to use when pulling base image from registry, e.g. ${CI_JOB_TOKEN}.
       --to-registry-username USER                         Set the username to use when deploying to registry, e.g. gitlab-ci-token.
       --to-registry-password PASSWORD                     Set the password to use when deploying to registry, e.g. ${CI_JOB_TOKEN}.
-  -q, --quiet                                             Don't print a progress bar
+  -q, --quiet                                             Don't print a progress bar nor a start of build message
   -v, --verbose                                           Print status of image building
+      --extra-java-args JAVA_ARGS                         Extra arguments to pass to the `java` command, e.g. --extra-java-args "-Dfoo=bar -ea"
   -m, --main SYMBOL                                       Main namespace
   -A ALIASES                                              Concatenated aliases of any kind, ex: -A:dev:mem
   -R ALIASES                                              Concatenated resolve-deps aliases, ex: -R:bench:1.9
