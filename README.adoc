@@ -256,12 +256,13 @@ Options:
       --additional-tag TAG                                Additional tag for the image, e.g latest. Repeat to add multiple tags
       --label LABEL=VALUE                                 Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels.
       --user USER                                         Set the user and group to run the container as. Valid formats are: user, uid, user:group, uid:gid, uid:group, user:gid
-      --from-registry-username USER                       Set the username to use when pulling base image from registry, e.g. gitlab-ci-token.
-      --from-registry-password PASSWORD                   Set the password to use when pulling base image from registry, e.g. ${CI_JOB_TOKEN}.
+      --from-registry-username USER                       Set the username to use when pulling from registry, e.g. gitlab-ci-token.
+      --from-registry-password PASSWORD                   Set the password to use when pulling from registry, e.g. ${CI_JOB_TOKEN}.
       --to-registry-username USER                         Set the username to use when deploying to registry, e.g. gitlab-ci-token.
       --to-registry-password PASSWORD                     Set the password to use when deploying to registry, e.g. ${CI_JOB_TOKEN}.
-  -q, --quiet                                             Don't print a progress bar
+  -q, --quiet                                             Don't print a progress bar nor a start of build message
   -v, --verbose                                           Print status of image building
+      --extra-java-args JAVA_ARGS                         Extra arguments to pass to the `java` command, e.g. --extra-java-args "-Dfoo=bar -ea"
   -m, --main SYMBOL                                       Main namespace
   -A ALIASES                                              Concatenated aliases of any kind, ex: -A:dev:mem
   -R ALIASES                                              Concatenated resolve-deps aliases, ex: -R:bench:1.9
