@@ -43,10 +43,16 @@
    ["-e" "--extra-path STRING" "Add directory to classpath for building. Same as :extra-paths"
     :assoc-fn (fn [m k v] (update m k conj v))
     :id ::extra]
+
+
+   ["-D" "--sdeps EDN" "Deps data to use as the last deps file to be merged by tool.deps when pulling dependencies for image. Equivalent to `clj -Sdeps EDN`."
+    :id ::sdeps
+    :parse-fn edn/read-string
+    :default "{}"]
    #_["-d" "--deps STRING" "deps.edn file location"
-    :default "deps.edn"
-    :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]
-    :id ::deps-path]])
+      :default "deps.edn"
+      :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]
+      :id ::deps-path]])
 
 (comment
   (require '[clojure.tools.cli :as cli])
@@ -83,8 +89,8 @@
 
 ;; opts is return of cli-opts, except ::deps-path
 (defn parse-deps-map
-  [deps-map {::keys [resolve-aliases makecp-aliases extra]}]
-  (let [deps-map (tools.deps.reader/merge-deps [(tools.deps.reader/install-deps) (config-edn) deps-map])
+  [deps-map {::keys [resolve-aliases makecp-aliases extra sdeps]}]
+  (let [deps-map (tools.deps.reader/merge-deps [sdeps (tools.deps.reader/install-deps) (config-edn) deps-map])
 
         resolve-args (tools.deps/combine-aliases deps-map resolve-aliases)
         cp-args (tools.deps/combine-aliases deps-map makecp-aliases)]
