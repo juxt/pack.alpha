@@ -43,7 +43,7 @@
    ["-e" "--extra-path STRING" "Add directory to classpath for building. Same as :extra-paths"
     :assoc-fn (fn [m k v] (update m k conj v))
     :id ::extra]
-   ["-D" "--sdeps EDN" "Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`."
+   [nil "--Sdeps EDN" "Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`."
     :id ::sdeps
     :parse-fn edn/read-string
     :default "{}"]
