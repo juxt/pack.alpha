@@ -25,10 +25,10 @@ NOTE: This isn't infallible.  Please let me know if I break your indentation.
 
 [source,clojure]
 ----
-$ clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "dccf2134bcf03726a9465d2b9997c42e5cd91bff"}}}' -m mach.pack.alpha.inject '2769a6224bfb938e777906ea311b3daf7d2220f5'
+$ clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "dccf2134bcf03726a9465d2b9997c42e5cd91bff"}}}' -m mach.pack.alpha.inject 'c70740ffc10805f34836da2160fa1899601fac02'
 ----
 
-TIP: Latest stable sha is `2769a6224bfb938e777906ea311b3daf7d2220f5`.
+TIP: Latest stable sha is `c70740ffc10805f34836da2160fa1899601fac02`.
 
 The following examples assume you have run this.
 
