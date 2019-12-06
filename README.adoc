@@ -56,6 +56,7 @@ Options:
   -A ALIASES               Concatenated aliases of any kind, ex: -A:dev:mem
   -R ALIASES               Concatenated resolve-deps aliases, ex: -R:bench:1.9
   -C ALIASES               Concatenated make-classpath aliases, ex: -C:dev
+     --Sdeps EDN    {}    Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
   -e, --extra-path STRING  Add directory to classpath for building. Same as :extra-paths
   -h, --help               show this help
 
@@ -112,7 +113,7 @@ Usage: clj -m mach.pack.alpha.capsule [options] <path/to/output.jar>
       --system-properties STRING              space-separated list of propName=value pairs, specifying JVM System Properties which will be passed to the application. Maps to the 'System-Properties' entry in the Capsule Manifest.
       --jvm-args STRING                       space-separated list of JVM argument that will be used to launch the application (e.g "-server -Xms200m -Xmx600m"). Maps to the 'JVM-Args' entry in the Capsule Manifest.
   -e, --extra-path STRING                     add directory to classpath for building
-  -d, --deps STRING                 deps.edn  deps.edn file location
+      --Sdeps EDN               {}            Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
   -M, --manifest-entry STRING                 a "Key: Value" pair that will be appended to the Capsule Manifest; useful for conveying arbitrary Manifest entries to the Capsule Manifest. Can be repeated to supply several entries.
   -h, --help                                  show this help
 ----
@@ -151,6 +152,7 @@ Usage: clj -m mach.pack.alpha.one-jar [options] <path/to/output.jar>
 Options:
   -e, --extra-path STRING                add directory to classpath for building
   -d, --deps STRING        deps.edn      deps.edn file location
+      --Sdeps EDN          {}            Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
   -m, --main STRING        clojure.main  Override the default main of clojure.main. You MUST use AOT compilation with this.
   -h, --help                             show this help
 
@@ -186,6 +188,7 @@ Options:
   -A ALIASES                               Concatenated aliases of any kind, ex: -A:dev:mem
   -R ALIASES                               Concatenated resolve-deps aliases, ex: -R:bench:1.9
   -C ALIASES                               Concatenated make-classpath aliases, ex: -C:dev
+      --Sdeps EDN          {}              Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
   -e, --extra-path STRING                  Add directory to classpath for building. Same as :extra-paths
   -h, --help                               show this help
 ----
@@ -268,6 +271,7 @@ Options:
   -A ALIASES                                              Concatenated aliases of any kind, ex: -A:dev:mem
   -R ALIASES                                              Concatenated resolve-deps aliases, ex: -R:bench:1.9
   -C ALIASES                                              Concatenated make-classpath aliases, ex: -C:dev
+      --Sdeps EDN              {}                         Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
   -e, --extra-path STRING                                 Add directory to classpath for building. Same as :extra-paths
   -h, --help                                              show this help
 ----
