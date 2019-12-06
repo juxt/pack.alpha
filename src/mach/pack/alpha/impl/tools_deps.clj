@@ -46,7 +46,7 @@
    [nil "--Sdeps EDN" "Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`."
     :id ::sdeps
     :parse-fn edn/read-string
-    :default "{}"]
+    :default {}]
    #_["-d" "--deps STRING" "deps.edn file location"
       :default "deps.edn"
       :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]
