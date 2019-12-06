@@ -6,7 +6,7 @@
             [clojure.tools.cli :as cli]
             [progrock.core :as pr])
   (:import (com.google.cloud.tools.jib.api Jib AbsoluteUnixPath)
-           (java.nio.file Paths Files LinkOption)
+           (java.nio.file Paths Files LinkOption FileSystems)
            (com.google.cloud.tools.jib.api LayerConfiguration
                                            Containerizer
                                            DockerDaemonImage
@@ -18,7 +18,7 @@
                                            CredentialRetriever)
            (com.google.cloud.tools.jib.frontend CredentialRetrieverFactory)
            (com.google.cloud.tools.jib.event.events ProgressEvent TimerEvent)
-           (java.util.function Consumer)
+           (java.util.function Consumer BiFunction)
            (java.util Optional)
            (java.time Instant)))
 
@@ -63,7 +63,17 @@
       (retrieve [_]
         (Optional/of (Credential/from username password))))))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user to-registry-username to-registry-password from-registry-username from-registry-password quiet verbose main]}]
+(def classfile-matcher (-> (FileSystems/getDefault)
+                           (.getPathMatcher "glob:**.class")))
+
+(def timestamp-provider
+  (reify BiFunction
+    (apply [_ source-path destination-path]
+      (if (.matches classfile-matcher source-path)
+        (Instant/ofEpochSecond 8589934591)
+        LayerConfiguration/DEFAULT_MODIFIED_TIME))))
+
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user creation-time to-registry-username to-registry-password from-registry-username from-registry-password quiet verbose main]}]
   (when-not quiet
     (println "Building" image-name))
   (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
@@ -104,7 +114,9 @@
                                            (-> acc
                                                (update :builder #(.addEntryRecursive %
                                                                                      path
-                                                                                     container-path))
+                                                                                     container-path
+                                                                                     LayerConfiguration/DEFAULT_FILE_PERMISSIONS_PROVIDER
+                                                                                     timestamp-provider))
                                                (update :container-paths conj container-path)))
                                          acc)))
                                    {:builder (-> (LayerConfiguration/builder)
@@ -121,7 +133,10 @@
                              (AbsoluteUnixPath/get (last (.split include ":"))))
           (seq labels) (add-labels labels)
           user (.setUser user))
-        (.setCreationTime (Instant/now))
+        (.setCreationTime (or (some->> creation-time
+                                       (Long/valueOf)
+                                       (Instant/ofEpochSecond))
+                              (Instant/EPOCH)))
         (.addLayer (-> lib-jars-layer :builder (.build)))
         (.addLayer (-> lib-dirs-layer :builder (.build)))
         (.addLayer (-> project-dirs-layer :builder (.build)))
@@ -164,6 +179,7 @@
     [nil "--tar-file FILE" "Tarball file name"]
     [nil "--base-image BASE-IMAGE" "Base Docker image to use"
      :default "gcr.io/distroless/java:11"]
+    [nil "--creation-time CREATION-TIME-EPOCH" "Set creation time of image in epoch seconds, e.g. $(git log -1 --pretty=format:%ct) Defaults to 0."]
     [nil "--include [src:]dest" "Include file or directory, relative to container root"]
     [nil "--additional-tag TAG" "Additional tag for the image, e.g latest. Repeat to add multiple tags"
      :assoc-fn #(update %1 %2 conj %3)]
@@ -209,6 +225,7 @@
                  additional-tag
                  label
                  user
+                 creation-time
                  to-registry-username
                  to-registry-password
                  from-registry-username
@@ -236,6 +253,7 @@
             :additional-tags additional-tag
             :labels label
             :user user
+            :creation-time creation-time
             :to-registry-username to-registry-username
             :to-registry-password to-registry-password
             :from-registry-username from-registry-username
