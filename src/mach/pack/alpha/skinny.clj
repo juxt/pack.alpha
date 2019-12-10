@@ -54,7 +54,7 @@
           ;; TODO: Master elodin should be in charge of this
           (fn [{:keys [path] :as all}]
             {:path [(format "%s.jar" (elodin/versioned-lib all))]
-             :input (io/input-stream path)})
+             :input (delay (io/input-stream path))})
           (lib-map/lib-jars lib-map))
         (case output-target
           :keep 

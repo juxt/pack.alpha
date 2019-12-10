@@ -99,7 +99,7 @@
       (concat
         (map
           (fn [{:keys [path] :as all}]
-            {:input (io/input-stream path)
+            {:input (delay (io/input-stream path))
              :path ["lib" (elodin/jar-name all)]})
           (lib-map/lib-jars lib-map))
 
@@ -123,10 +123,10 @@
                          (comp (filter (memfn isFile))
                                (map #(string/replace % #"^src/" ""))
                                (map (fn [x]
-                                      {:path (elodin/str->path-seq (string/replace x #"^.*resources/" ""))
-                                       :input (list 'io/input-stream (list 'io/resource x))})))
+                                      {:path (into [] (elodin/file->path-seq (string/replace x #"^.*resources/" "")))
+                                       :input (list 'delay (list 'io/input-stream (list 'io/resource x)))})))
                          (file-seq (io/file "src/mach/pack/alpha/bootstrap/onejar/resources/"))))
-        [{:path [".version"], :input (io/input-stream (io/resource "mach/pack/alpha/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input (io/input-stream (io/resource "mach/pack/alpha/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
+        [{:path [".version"], :input (delay (io/input-stream (io/resource "mach/pack/alpha/bootstrap/onejar/resources/.version")))} {:path ["doc" "one-jar-license.txt"], :input (delay (io/input-stream (io/resource "mach/pack/alpha/bootstrap/onejar/resources/doc/one-jar-license.txt")))}]
         (let [root (.toFile bootstrap-p)]
           (vfs/files-path
             (filter #(.endsWith (.getName %) ".class") (file-seq root))

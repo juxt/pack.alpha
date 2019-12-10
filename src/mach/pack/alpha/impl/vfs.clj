@@ -105,7 +105,7 @@
     (let [out (java.io.PipedOutputStream.)
           in (java.io.PipedInputStream. out)]
       (assoc path
-             :input in
+             :input (delay in)
              :output {:stream out
                       :type :jar}))
     path))
@@ -175,7 +175,7 @@
                              (prepare-path)
                              (JarEntry.)
                              (set-last-modified (:last-modified child))))
-          (write! (:input child))
+          (write! @(:input child))
           (.closeEntry))
         (catch NullPointerException e
           (println "NPE while write! on:" (pr-str child))
@@ -191,7 +191,7 @@
                            (prepare-path)
                            (ZipEntry.)
                            (set-last-modified (:last-modified child))))
-        (write! (:input child))
+        (write! @(:input child))
         (.closeEntry)))))
 
 (defmethod write-output :dir
@@ -200,7 +200,7 @@
     (doseq [child children]
       (let [out (io/file root (path-seq->str (:path child)))]
         (io/make-parents out)
-        (io/copy (:input child) out)))))
+        (io/copy @(:input child) out)))))
 
 (defn write-vfs
   [output paths]
@@ -222,7 +222,7 @@
                     
                     (:input node)
                     (with-open [o (get-in node [:output :stream])]
-                      (write! o (:input node)))))
+                      (write! o @(:input node)))))
                 (catch Exception e
                   #_(println (str "An exception occurred" (pr-str node height children)))
                   (throw e)))))]
@@ -236,6 +236,6 @@
          {:path (path->path-seq
                   (.relativize (.toPath dir)
                                (.toPath file)))
-          :input (io/input-stream file)
+          :input (delay (io/input-stream file))
           :last-modified (.lastModified file)})
        (filter (memfn isFile) files)))

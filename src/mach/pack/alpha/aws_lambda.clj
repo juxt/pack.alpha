@@ -16,7 +16,7 @@
     (concat
       (map
         (fn [{:keys [path] :as all}]
-          {:input (io/input-stream path)
+          {:input (delay (io/input-stream path))
            :path ["lib" (elodin/jar-name all)]})
         (lib-map/lib-jars lib-map))
 

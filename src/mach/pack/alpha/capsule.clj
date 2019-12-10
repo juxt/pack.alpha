@@ -33,7 +33,7 @@
     (concat
       (map
         (fn [{:keys [path] :as all}]
-          {:input (io/input-stream path)
+          {:input (delay (io/input-stream path))
            :path [(elodin/jar-name all)]})
         (lib-map/lib-jars lib-map))
 
@@ -52,7 +52,7 @@
                  paths)
         :path ["project.jar"]}
        {:path ["Capsule.class"]
-        :input (io/input-stream (io/resource "Capsule.class"))}])))
+        :input (delay (io/input-stream (io/resource "Capsule.class")))}])))
 
 (def manifest-header-pattern
   ;; see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html
