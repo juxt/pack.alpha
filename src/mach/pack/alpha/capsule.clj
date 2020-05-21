@@ -128,8 +128,9 @@
         output
         (cond->
           [["Application-Class" "clojure.main"]
-           ["Application-ID" application-id]
-           ["Application-Version" application-version]]
+           ["Application-ID" application-id]]
+          application-version
+          ["Application-Version" application-version]
           system-properties
           (conj ["System-Properties" system-properties])
           jvm-args
