@@ -113,7 +113,9 @@
         (cli/parse-opts args cli-options)
         errors (cond-> (:errors parsed-opts)
                  (not output)
-                 (conj "Output jar must be specified"))]
+                 (conj "Output jar must be specified")
+                 (not application-id)
+                 (conj "--application-id must be specified"))]
     (cond
       help
       (println (usage (:summary parsed-opts)))
