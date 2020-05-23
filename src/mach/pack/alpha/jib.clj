@@ -26,10 +26,11 @@
 (def string-array (into-array String []))
 (def target-dir "/app")
 
-(def logger
+(defn make-logger [verbose]
   (reify java.util.function.Consumer
     (accept [this log-event]
-      (println log-event))))
+      (when verbose
+        (println log-event)))))
 
 (defn unique-base-path
   "Creates a unique string from a path by joining path elements with `-`.
@@ -132,7 +133,7 @@
         base-image-with-creds (-> (RegistryImage/named ^String base-image)
                                   (.addCredentialRetriever (or
                                                              (explicit-credentials from-registry-username from-registry-password)
-                                                             (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image) logger)
+                                                             (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image) (make-logger verbose))
                                                                  (.dockerConfig)))))]
     (-> (cond-> (Jib/from base-image-with-creds)
           include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
@@ -163,7 +164,7 @@
                                                    :registry (-> (RegistryImage/named image-name)
                                                                  (.addCredentialRetriever (or
                                                                                             (explicit-credentials to-registry-username to-registry-password)
-                                                                                            (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name) logger)
+                                                                                            (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name) (make-logger verbose))
                                                                                                 (.dockerConfig)))))))
                          (seq additional-tags) (add-additional-tags additional-tags)
                          (not quiet) (.addEventHandler ProgressEvent (progress-bar-consumer))
