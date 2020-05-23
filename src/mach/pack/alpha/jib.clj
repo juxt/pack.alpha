@@ -5,7 +5,8 @@
             [clojure.string :as str]
             [clojure.tools.cli :as cli]
             [progrock.core :as pr])
-  (:import (com.google.cloud.tools.jib.api Jib AbsoluteUnixPath)
+  (:import (com.google.cloud.tools.jib.api Jib)
+           (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath)
            (java.nio.file Paths Files LinkOption FileSystems)
            (com.google.cloud.tools.jib.api LayerConfiguration
                                            Containerizer
@@ -24,6 +25,11 @@
 
 (def string-array (into-array String []))
 (def target-dir "/app")
+
+(def logger
+  (reify java.util.function.Consumer
+    (accept [this log-event]
+      (println log-event))))
 
 (defn unique-base-path
   "Creates a unique string from a path by joining path elements with `-`.
@@ -71,7 +77,7 @@
     (apply [_ source-path destination-path]
       (if (.matches classfile-matcher source-path)
         (Instant/ofEpochSecond 8589934591)
-        LayerConfiguration/DEFAULT_MODIFIED_TIME))))
+        LayerConfiguration/DEFAULT_MODIFICATION_TIME))))
 
 (defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user creation-time to-registry-username to-registry-password from-registry-username from-registry-password quiet verbose extra-java-args main]}]
   (when-not quiet
@@ -126,7 +132,7 @@
         base-image-with-creds (-> (RegistryImage/named ^String base-image)
                                   (.addCredentialRetriever (or
                                                              (explicit-credentials from-registry-username from-registry-password)
-                                                             (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image))
+                                                             (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image) logger)
                                                                  (.dockerConfig)))))]
     (-> (cond-> (Jib/from base-image-with-creds)
           include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
@@ -152,12 +158,12 @@
                                                     "clojure.main" "-m" main])))
         (.containerize (cond-> (Containerizer/to (case image-type
                                                    :docker (DockerDaemonImage/named image-name)
-                                                   :tar (-> (TarImage/named image-name)
-                                                            (.saveTo (Paths/get tar-file string-array)))
+                                                   :tar (-> (TarImage/at (Paths/get tar-file string-array))
+                                                            (.named image-name))
                                                    :registry (-> (RegistryImage/named image-name)
                                                                  (.addCredentialRetriever (or
                                                                                             (explicit-credentials to-registry-username to-registry-password)
-                                                                                            (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
+                                                                                            (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name) logger)
                                                                                                 (.dockerConfig)))))))
                          (seq additional-tags) (add-additional-tags additional-tags)
                          (not quiet) (.addEventHandler ProgressEvent (progress-bar-consumer))
