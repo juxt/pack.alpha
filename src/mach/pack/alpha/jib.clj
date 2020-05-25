@@ -5,7 +5,8 @@
             [clojure.string :as str]
             [clojure.tools.cli :as cli]
             [progrock.core :as pr])
-  (:import (com.google.cloud.tools.jib.api Jib AbsoluteUnixPath)
+  (:import (com.google.cloud.tools.jib.api Jib)
+           (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath)
            (java.nio.file Paths Files LinkOption FileSystems)
            (com.google.cloud.tools.jib.api LayerConfiguration
                                            Containerizer
@@ -24,6 +25,12 @@
 
 (def string-array (into-array String []))
 (def target-dir "/app")
+
+(defn make-logger [verbose]
+  (reify Consumer
+    (accept [this log-event]
+      (when verbose
+        (println (.getMessage log-event))))))
 
 (defn unique-base-path
   "Creates a unique string from a path by joining path elements with `-`.
@@ -71,102 +78,149 @@
     (apply [_ source-path destination-path]
       (if (.matches classfile-matcher source-path)
         (Instant/ofEpochSecond 8589934591)
-        LayerConfiguration/DEFAULT_MODIFIED_TIME))))
+        LayerConfiguration/DEFAULT_MODIFICATION_TIME))))
 
-(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name image-type tar-file base-image target-dir include additional-tags labels user creation-time to-registry-username to-registry-password from-registry-username from-registry-password quiet verbose extra-java-args main]}]
+(defn make-lib-jars-layer [lib-map]
+  (reduce (fn [acc {:keys [path] :as all}]
+            (let [container-path (AbsoluteUnixPath/get (str target-dir
+                                                            "/"
+                                                            (elodin/versioned-lib all)
+                                                            ".jar"))]
+              (-> acc
+                  (update :builder #(.addEntry %
+                                               (Paths/get path string-array)
+                                               container-path))
+                  (update :container-paths conj container-path))))
+          {:builder (-> (LayerConfiguration/builder)
+                        (.setName "library jars"))
+           :container-paths nil}
+          (lib-map/lib-jars lib-map)))
+
+(defn make-lib-dirs-layer [lib-map]
+  (reduce (fn [acc {:keys [path] :as all}]
+            (let [container-path (AbsoluteUnixPath/get (str target-dir
+                                                            "/"
+                                                            (elodin/versioned-lib all)
+                                                            "-"
+                                                            (elodin/directory-unique all)))]
+              (-> acc
+                  (update :builder #(.addEntryRecursive %
+                                                        (Paths/get path string-array)
+                                                        container-path))
+                  (update :container-paths conj container-path))))
+          {:builder (-> (LayerConfiguration/builder)
+                        (.setName "library directories"))
+           :container-paths nil}
+          (lib-map/lib-dirs lib-map)))
+
+(defn make-project-dirs-layer [paths]
+  (reduce (fn [acc project-path]
+            (let [path (Paths/get project-path string-array)]
+              (if (Files/exists path (into-array LinkOption []))
+                (let [container-path (AbsoluteUnixPath/get (str target-dir
+                                                                "/"
+                                                                (unique-base-path path)))]
+                  (-> acc
+                      (update :builder #(.addEntryRecursive %
+                                                            path
+                                                            container-path
+                                                            LayerConfiguration/DEFAULT_FILE_PERMISSIONS_PROVIDER
+                                                            timestamp-provider))
+                      (update :container-paths conj container-path)))
+                acc)))
+          {:builder (-> (LayerConfiguration/builder)
+                        (.setName "project directories"))
+           :container-paths nil}
+          paths))
+
+(defn make-base-image [base-image from-registry-username from-registry-password logger]
+  (-> (RegistryImage/named ^String base-image)
+      (.addCredentialRetriever (or (explicit-credentials from-registry-username from-registry-password)
+                                   (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image) logger)
+                                       (.dockerConfig))))))
+
+(defn make-entry-point [extra-java-args layers main]
+  (into-array String
+              (concat ["java"]
+                      (when (seq extra-java-args)
+                        (str/split extra-java-args #"\s+"))
+                      ["-Dclojure.main.report=stderr"
+                       "-Dfile.encoding=UTF-8"
+                       "-cp" (str/join ":" (map str (mapcat :container-paths layers)))
+                       "clojure.main" "-m" main])))
+
+(defn make-containerizer [image-type image-name tar-file to-registry-username to-registry-password logger]
+  (Containerizer/to (case image-type
+                      :docker (DockerDaemonImage/named image-name)
+                      :tar (-> (TarImage/at (Paths/get tar-file string-array))
+                               (.named image-name))
+                      :registry (-> (RegistryImage/named image-name)
+                                    (.addCredentialRetriever (or
+                                                              (explicit-credentials to-registry-username to-registry-password)
+                                                              (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name) logger)
+                                                                  (.dockerConfig))))))))
+
+(defn add-layers [jib-container-builder layers]
+  (reduce (fn [acc layer]
+            (.addLayer acc (-> layer :builder (.build))))
+          jib-container-builder
+          layers))
+
+(defn make-creation-time [creation-time]
+  (or (some->> creation-time
+               (Long/valueOf)
+               (Instant/ofEpochSecond))
+      (Instant/EPOCH)))
+
+(defn add-logging-event-handlers [containerizer]
+  (.addEventHandler containerizer
+                    LogEvent
+                    (make-logger true))
+  (.addEventHandler containerizer
+                    TimerEvent
+                    (reify Consumer
+                      (accept [this t]
+                        (println (.getDescription t))))))
+
+(defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name
+                                                       image-type
+                                                       tar-file
+                                                       base-image
+                                                       target-dir
+                                                       include
+                                                       additional-tags
+                                                       labels
+                                                       user
+                                                       creation-time
+                                                       to-registry-username
+                                                       to-registry-password
+                                                       from-registry-username
+                                                       from-registry-password
+                                                       quiet
+                                                       verbose
+                                                       extra-java-args
+                                                       main]}]
   (when-not quiet
     (println "Building" image-name))
-  (let [lib-jars-layer (reduce (fn [acc {:keys [path] :as all}]
-                                 (let [container-path (AbsoluteUnixPath/get (str target-dir
-                                                                                 "/"
-                                                                                 (elodin/versioned-lib all)
-                                                                                 ".jar"))]
-                                   (-> acc
-                                       (update :builder #(.addEntry %
-                                                                    (Paths/get path string-array)
-                                                                    container-path))
-                                       (update :container-paths conj container-path))))
-                               {:builder (-> (LayerConfiguration/builder)
-                                             (.setName "library jars"))
-                                :container-paths nil}
-                               (lib-map/lib-jars lib-map))
-        lib-dirs-layer (reduce (fn [acc {:keys [path] :as all}]
-                                 (let [container-path (AbsoluteUnixPath/get (str target-dir
-                                                                                 "/"
-                                                                                 (elodin/versioned-lib all)
-                                                                                 "-"
-                                                                                 (elodin/directory-unique all)))]
-                                   (-> acc
-                                       (update :builder #(.addEntryRecursive %
-                                                                             (Paths/get path string-array)
-                                                                             container-path))
-                                       (update :container-paths conj container-path))))
-                               {:builder (-> (LayerConfiguration/builder)
-                                             (.setName "library directories"))
-                                :container-paths nil}
-                               (lib-map/lib-dirs lib-map))
-        project-dirs-layer (reduce (fn [acc project-path]
-                                     (let [path (Paths/get project-path string-array)]
-                                       (if (Files/exists path (into-array LinkOption []))
-                                         (let [container-path (AbsoluteUnixPath/get (str target-dir
-                                                                                         "/"
-                                                                                         (unique-base-path path)))]
-                                           (-> acc
-                                               (update :builder #(.addEntryRecursive %
-                                                                                     path
-                                                                                     container-path
-                                                                                     LayerConfiguration/DEFAULT_FILE_PERMISSIONS_PROVIDER
-                                                                                     timestamp-provider))
-                                               (update :container-paths conj container-path)))
-                                         acc)))
-                                   {:builder (-> (LayerConfiguration/builder)
-                                                 (.setName "project directories"))
-                                    :container-paths nil}
-                                   paths)
-        base-image-with-creds (-> (RegistryImage/named ^String base-image)
-                                  (.addCredentialRetriever (or
-                                                             (explicit-credentials from-registry-username from-registry-password)
-                                                             (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image))
-                                                                 (.dockerConfig)))))]
+  (let [lib-jars-layer (make-lib-jars-layer lib-map)
+        lib-dirs-layer (make-lib-dirs-layer lib-map)
+        project-dirs-layer (make-project-dirs-layer paths)
+        layers [lib-jars-layer lib-dirs-layer project-dirs-layer]
+        logger (make-logger verbose)
+        base-image-with-creds (make-base-image base-image from-registry-username from-registry-password logger)]
     (-> (cond-> (Jib/from base-image-with-creds)
           include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
                              (AbsoluteUnixPath/get (last (.split include ":"))))
           (seq labels) (add-labels labels)
           user (.setUser user))
-        (.setCreationTime (or (some->> creation-time
-                                       (Long/valueOf)
-                                       (Instant/ofEpochSecond))
-                              (Instant/EPOCH)))
-        (.addLayer (-> lib-jars-layer :builder (.build)))
-        (.addLayer (-> lib-dirs-layer :builder (.build)))
-        (.addLayer (-> project-dirs-layer :builder (.build)))
+        (.setCreationTime (make-creation-time creation-time))
+        (add-layers layers)
         (.setWorkingDirectory (AbsoluteUnixPath/get target-dir))
-        (.setEntrypoint (into-array String (concat ["java"]
-                                                   (when (seq extra-java-args)
-                                                     (str/split extra-java-args #"\s+"))
-                                                   ["-Dclojure.main.report=stderr"
-                                                    "-Dfile.encoding=UTF-8"
-                                                    "-cp" (str/join ":" (map str (mapcat :container-paths [lib-jars-layer
-                                                                                                           lib-dirs-layer
-                                                                                                           project-dirs-layer])))
-                                                    "clojure.main" "-m" main])))
-        (.containerize (cond-> (Containerizer/to (case image-type
-                                                   :docker (DockerDaemonImage/named image-name)
-                                                   :tar (-> (TarImage/named image-name)
-                                                            (.saveTo (Paths/get tar-file string-array)))
-                                                   :registry (-> (RegistryImage/named image-name)
-                                                                 (.addCredentialRetriever (or
-                                                                                            (explicit-credentials to-registry-username to-registry-password)
-                                                                                            (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name))
-                                                                                                (.dockerConfig)))))))
+        (.setEntrypoint (make-entry-point extra-java-args layers main))
+        (.containerize (cond-> (make-containerizer image-type image-name tar-file to-registry-username to-registry-password logger)
                          (seq additional-tags) (add-additional-tags additional-tags)
                          (not quiet) (.addEventHandler ProgressEvent (progress-bar-consumer))
-                         verbose (.addEventHandler LogEvent (reify Consumer
-                                                              (accept [this t]
-                                                                (println (.getMessage t)))))
-                         verbose (.addEventHandler TimerEvent (reify Consumer
-                                                                (accept [this t]
-                                                                  (println (.getDescription t))))))))))
+                         verbose (add-logging-event-handlers))))))
 
 (def image-types #{:docker :registry :tar})
 
