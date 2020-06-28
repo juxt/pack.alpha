@@ -287,3 +287,18 @@ clj -A:pack mach.pack.alpha.jib \
 ----
 
 In order to pass Java system properties to the running container, `JAVA_TOOL_OPTIONS` environment variable can be used. See example in link:https://github.com/GoogleContainerTools/jib/blob/master/docs/faq.md#jvm-flags[Jib FAQ].
+
+==== AOT for better startup speed
+
+For larger apps, link:https://www.clojure.org/guides/deps_and_cli#aot_compilation[Ahead-of-time (AOT)] compilation can signifficantly speedup startup time. This can be done by first compiling Clojure source code to bytecode and then including the bytecode into the Docker image via the `-e` option, for example:
+
+[source]
+----
+$ mkdir classes
+$ clojure -e "(compile 'my.main)"
+$ clj -A:pack mach.pack.alpha.jib \ 
+      --image-name eu.gcr.io/my-example-project/my-app:1234 \
+      --image-type registry \
+      -e classes \
+      -m my.main
+----
