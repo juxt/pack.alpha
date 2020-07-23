@@ -130,7 +130,7 @@
           [["Application-Class" "clojure.main"]
            ["Application-ID" application-id]]
           application-version
-          ["Application-Version" application-version]
+          (conj ["Application-Version" application-version])
           system-properties
           (conj ["System-Properties" system-properties])
           jvm-args
