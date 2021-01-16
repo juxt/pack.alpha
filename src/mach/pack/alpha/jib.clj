@@ -6,10 +6,9 @@
             [clojure.tools.cli :as cli]
             [progrock.core :as pr])
   (:import (com.google.cloud.tools.jib.api Jib)
-           (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath)
+           (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath ModificationTimeProvider FileEntriesLayer)
            (java.nio.file Paths Files LinkOption FileSystems)
-           (com.google.cloud.tools.jib.api LayerConfiguration
-                                           Containerizer
+           (com.google.cloud.tools.jib.api Containerizer
                                            DockerDaemonImage
                                            TarImage
                                            RegistryImage
@@ -19,7 +18,7 @@
                                            CredentialRetriever)
            (com.google.cloud.tools.jib.frontend CredentialRetrieverFactory)
            (com.google.cloud.tools.jib.event.events ProgressEvent TimerEvent)
-           (java.util.function Consumer BiFunction)
+           (java.util.function Consumer)
            (java.util Optional)
            (java.time Instant)))
 
@@ -74,11 +73,11 @@
                            (.getPathMatcher "glob:**.class")))
 
 (def timestamp-provider
-  (reify BiFunction
-    (apply [_ source-path destination-path]
+  (reify ModificationTimeProvider
+    (get [_this source-path _destination-path]
       (if (.matches classfile-matcher source-path)
         (Instant/ofEpochSecond 8589934591)
-        LayerConfiguration/DEFAULT_MODIFICATION_TIME))))
+        FileEntriesLayer/DEFAULT_MODIFICATION_TIME))))
 
 (defn make-lib-jars-layer [lib-map]
   (reduce (fn [acc {:keys [path] :as all}]
@@ -91,7 +90,7 @@
                                                (Paths/get path string-array)
                                                container-path))
                   (update :container-paths conj container-path))))
-          {:builder (-> (LayerConfiguration/builder)
+          {:builder (-> (FileEntriesLayer/builder)
                         (.setName "library jars"))
            :container-paths nil}
           (lib-map/lib-jars lib-map)))
@@ -108,7 +107,7 @@
                                                         (Paths/get path string-array)
                                                         container-path))
                   (update :container-paths conj container-path))))
-          {:builder (-> (LayerConfiguration/builder)
+          {:builder (-> (FileEntriesLayer/builder)
                         (.setName "library directories"))
            :container-paths nil}
           (lib-map/lib-dirs lib-map)))
@@ -124,11 +123,11 @@
                       (update :builder #(.addEntryRecursive %
                                                             path
                                                             container-path
-                                                            LayerConfiguration/DEFAULT_FILE_PERMISSIONS_PROVIDER
+                                                            FileEntriesLayer/DEFAULT_FILE_PERMISSIONS_PROVIDER
                                                             timestamp-provider))
                       (update :container-paths conj container-path)))
                 acc)))
-          {:builder (-> (LayerConfiguration/builder)
+          {:builder (-> (FileEntriesLayer/builder)
                         (.setName "project directories"))
            :container-paths nil}
           paths))
@@ -162,7 +161,7 @@
 
 (defn add-layers [jib-container-builder layers]
   (reduce (fn [acc layer]
-            (.addLayer acc (-> layer :builder (.build))))
+            (.addFileEntriesLayer acc (-> layer :builder (.build))))
           jib-container-builder
           layers))
 
