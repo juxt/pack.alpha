@@ -6,7 +6,7 @@
             [clojure.tools.cli :as cli]
             [progrock.core :as pr])
   (:import (com.google.cloud.tools.jib.api Jib)
-           (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath)
+           (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath ModificationTimeProvider)
            (java.nio.file Paths Files LinkOption FileSystems)
            (com.google.cloud.tools.jib.api LayerConfiguration
                                            Containerizer
@@ -19,7 +19,7 @@
                                            CredentialRetriever)
            (com.google.cloud.tools.jib.frontend CredentialRetrieverFactory)
            (com.google.cloud.tools.jib.event.events ProgressEvent TimerEvent)
-           (java.util.function Consumer BiFunction)
+           (java.util.function Consumer)
            (java.util Optional)
            (java.time Instant)))
 
@@ -74,8 +74,8 @@
                            (.getPathMatcher "glob:**.class")))
 
 (def timestamp-provider
-  (reify BiFunction
-    (apply [_ source-path destination-path]
+  (reify ModificationTimeProvider
+    (get [_this source-path _destination-path]
       (if (.matches classfile-matcher source-path)
         (Instant/ofEpochSecond 8589934591)
         LayerConfiguration/DEFAULT_MODIFICATION_TIME))))
