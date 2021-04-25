@@ -12,6 +12,25 @@ Find us in the link:https://clojurians.zulipchat.com/#narrow/stream/151045-JUXT[
 
 == Usage
 
+=== Run separately from project environment
+
+Clojure CLI invokes the JVM with a classpath, that has the project dependencies in the classpath. Pack does not need to reside in this classpath. We can use Pack in a way that link:https://clojure.org/reference/deps_and_cli#_replace_project_environment_tool[replaces the project environment], just for building the artifacts:
+
+[source,clojure]
+----
+{:deps {...project deps...}
+ :aliases {:pack {:replace-deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git"
+                                                  :sha     "<check out the current stable hash>"}}
+                  :main-opts    ["-m"]}}}
+----
+
+Then, we can use `-M` for running pack:
+
+[source,bash]
+----
+$ clj -M:pack mach.pack.alpha.<tool> <options>...
+----
+
 === Auto-add to project
 
 Pack can add itself to your deps.edn automatically.
