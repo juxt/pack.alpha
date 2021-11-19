@@ -5,11 +5,7 @@
     [clojure.edn :as edn]
     [clojure.java.io :as io]
     [clojure.string :as string]
-
-    [clojure.tools.deps.alpha :as tools.deps]
-    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
-    ;; Lazy way of loading extensions
-    [clojure.tools.deps.alpha.script.make-classpath])
+    [clojure.tools.deps.alpha :as tools.deps])
   (:import
     [java.io File]))
 
@@ -25,19 +21,8 @@
          (keyword %)))))
 
 (def cli-spec
-  [[:short-opt "-A" :required "ALIASES" :id ::all
+  [[:short-opt "-A" :required "ALIASES" :id ::aliases
     :desc "Concatenated aliases of any kind, ex: -A:dev:mem"
-    :parse-fn parse-kws
-    :assoc-fn (fn [m k v]
-                (-> m
-                    (update ::resolve-aliases concat v)
-                    (update ::makecp-aliases concat v)))]
-   [:short-opt "-R" :required "ALIASES" :id ::resolve-aliases
-    :desc "Concatenated resolve-deps aliases, ex: -R:bench:1.9"
-    :parse-fn parse-kws
-    :assoc-fn (fn [m k v] (update m k concat v))]
-   [:short-opt "-C" :required "ALIASES" :id ::makecp-aliases
-    :desc "Concatenated make-classpath aliases, ex: -C:dev"
     :parse-fn parse-kws
     :assoc-fn (fn [m k v] (update m k concat v))]
    ["-e" "--extra-path STRING" "Add directory to classpath for building. Same as :extra-paths"
@@ -55,18 +40,11 @@
 (comment
   (require '[clojure.tools.cli :as cli])
 
-  (cli/parse-opts ["-A:foo:bar" "-R:bug" "-C:blah/baz" "-A:definitely"] cli-spec))
+  (cli/parse-opts ["-A:foo:bar" "-A:definitely"] cli-spec))
 
 (defn config-edn
   []
-  (let [config-env (System/getenv "CLJ_CONFIG")
-        xdg-env (System/getenv "XDG_CONFIG_HOME")
-        home (System/getProperty "user.home")
-        config-dir (cond config-env config-env
-                         xdg-env (str xdg-env File/separator "clojure")
-                         :else (str home File/separator ".clojure"))
-        config-deps (str config-dir File/separator "deps.edn")
-        config-file (io/file config-deps)]
+  (let [config-file (io/file (tools.deps/user-deps-path))]
     (when (.exists config-file)
       (-> config-file
           slurp
@@ -76,31 +54,23 @@
           ;; credentials can be kept out.
           (select-keys [:mvn/repos])))))
 
-(comment
-  (tools.deps/combine-aliases
-    {:paths []
-     :aliases
-     {:dev {:extra-paths ["foo"]
-            :extra-deps '{foo {:mvn/verson "bah"}}}
-      :foo {:extra-paths ["blah"]}}}
-    [:dev :foo]))
-
 ;; opts is return of cli-opts, except ::deps-path
 (defn parse-deps-map
-  [deps-map {::keys [resolve-aliases makecp-aliases extra sdeps]}]
-  (let [deps-map (tools.deps.reader/merge-deps [sdeps (tools.deps.reader/install-deps) (config-edn) deps-map])
-
-        resolve-args (tools.deps/combine-aliases deps-map resolve-aliases)
-        cp-args (tools.deps/combine-aliases deps-map makecp-aliases)]
-    {::lib-map (tools.deps/resolve-deps deps-map resolve-args)
-     ::paths (vec (distinct (concat (:paths deps-map)
-                                    (:extra-paths cp-args)
-                                    extra)))}))
+  [deps-map {::keys [aliases extra sdeps]}]
+  (let [basis
+        (tools.deps/create-basis
+          {:project (or deps-map :standard)
+           :user (config-edn)
+           :aliases (cons ::pack aliases)
+           :extra (assoc-in sdeps [:aliases ::pack] {:extra-paths extra})})]
+    {::lib-map (:libs basis)
+     ::basis basis
+     ::paths (vec
+               (keep
+                 #(when (:path-key (val %))
+                    (key %))
+                 (:classpath basis)))}))
 
 (defn slurp-deps
   [_]
-  (tools.deps.reader/slurp-deps (io/file "deps.edn")))
-
-(defn make-classpath
-  [{::keys [lib-map paths]}]
-  (tools.deps/make-classpath lib-map paths nil))
+  (tools.deps/slurp-deps (io/file "deps.edn")))
