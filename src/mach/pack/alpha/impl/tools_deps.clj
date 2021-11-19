@@ -7,9 +7,12 @@
     [clojure.string :as string]
 
     [clojure.tools.deps.alpha :as tools.deps]
-    [clojure.tools.deps.alpha.reader :as tools.deps.reader]
     ;; Lazy way of loading extensions
-    [clojure.tools.deps.alpha.script.make-classpath])
+    [clojure.tools.deps.alpha.extensions.deps]
+    [clojure.tools.deps.alpha.extensions.git]
+    [clojure.tools.deps.alpha.extensions.local]
+    [clojure.tools.deps.alpha.extensions.maven]
+    [clojure.tools.deps.alpha.extensions.pom])
   (:import
     [java.io File]))
 
@@ -88,7 +91,7 @@
 ;; opts is return of cli-opts, except ::deps-path
 (defn parse-deps-map
   [deps-map {::keys [resolve-aliases makecp-aliases extra sdeps]}]
-  (let [deps-map (tools.deps.reader/merge-deps [sdeps (tools.deps.reader/install-deps) (config-edn) deps-map])
+  (let [deps-map (tools.deps/merge-edns [sdeps (tools.deps/root-deps) (config-edn) deps-map])
 
         resolve-args (tools.deps/combine-aliases deps-map resolve-aliases)
         cp-args (tools.deps/combine-aliases deps-map makecp-aliases)]
@@ -99,7 +102,7 @@
 
 (defn slurp-deps
   [_]
-  (tools.deps.reader/slurp-deps (io/file "deps.edn")))
+  (tools.deps/slurp-deps (io/file "deps.edn")))
 
 (defn make-classpath
   [{::keys [lib-map paths]}]
