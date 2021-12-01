@@ -181,6 +181,14 @@
                       (accept [this t]
                         (println (.getDescription t))))))
 
+(defn add-include-layers [jib-container-builder includes]
+  (reduce (fn [jib-container-builder* include]
+            (.addLayer jib-container-builder*
+                       [(Paths/get (first (.split include ":")) string-array)]
+                       (AbsoluteUnixPath/get (last (.split include ":")))))
+          jib-container-builder
+          includes))
+
 (defn jib [{::tools-deps/keys [paths lib-map]} {:keys [image-name
                                                        image-type
                                                        tar-file
@@ -208,10 +216,9 @@
         logger (make-logger verbose)
         base-image-with-creds (make-base-image base-image from-registry-username from-registry-password logger)]
     (-> (cond-> (Jib/from base-image-with-creds)
-          include (.addLayer [(Paths/get (first (.split include ":")) string-array)]
-                             (AbsoluteUnixPath/get (last (.split include ":"))))
           (seq labels) (add-labels labels)
           user (.setUser user))
+        (add-include-layers include)
         (.setCreationTime (make-creation-time creation-time))
         (add-layers layers)
         (.setWorkingDirectory (AbsoluteUnixPath/get target-dir))
@@ -235,7 +242,11 @@
     [nil "--base-image BASE-IMAGE" "Base Docker image to use"
      :default "gcr.io/distroless/java:11"]
     [nil "--creation-time CREATION-TIME-EPOCH" "Set creation time of image in epoch seconds, e.g. $(git log -1 --pretty=format:%ct) Defaults to 0."]
-    [nil "--include [src:]dest" "Include file or directory, relative to container root"]
+    [nil "--include [src:]dest" "Include file or directory, relative to container root"
+     :multi true
+     :default []
+     :update-fn conj
+     ]
     [nil "--additional-tag TAG" "Additional tag for the image, e.g latest. Repeat to add multiple tags"
      :assoc-fn #(update %1 %2 conj %3)]
     [nil "--label LABEL=VALUE" "Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels."
