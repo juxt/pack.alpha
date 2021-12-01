@@ -242,7 +242,7 @@
     [nil "--base-image BASE-IMAGE" "Base Docker image to use"
      :default "gcr.io/distroless/java:11"]
     [nil "--creation-time CREATION-TIME-EPOCH" "Set creation time of image in epoch seconds, e.g. $(git log -1 --pretty=format:%ct) Defaults to 0."]
-    [nil "--include [src:]dest" "Include file or directory, relative to container root"
+    [nil "--include [src:]dest" "Include file or directory, relative to container root. Can be used multiple times to add more includes."
      :multi true
      :default []
      :update-fn conj
