@@ -54,8 +54,6 @@ Usage: clj -m mach.pack.alpha.aws-lambda [options] <path/to/output.zip>
 
 Options:
   -A ALIASES               Concatenated aliases of any kind, ex: -A:dev:mem
-  -R ALIASES               Concatenated resolve-deps aliases, ex: -R:bench:1.9
-  -C ALIASES               Concatenated make-classpath aliases, ex: -C:dev
      --Sdeps EDN    {}    Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
   -e, --extra-path STRING  Add directory to classpath for building. Same as :extra-paths
   -h, --help               show this help
@@ -186,8 +184,6 @@ Options:
       --lib-type STRING    :jar            Lib type format to use, keep or jar. Keep will keep in original format (jar or dir)
       --project-path PATH  target/app.jar  Where to place the project output, if it ends with .jar then the project will automatically output as a jar also.
   -A ALIASES                               Concatenated aliases of any kind, ex: -A:dev:mem
-  -R ALIASES                               Concatenated resolve-deps aliases, ex: -R:bench:1.9
-  -C ALIASES                               Concatenated make-classpath aliases, ex: -C:dev
       --Sdeps EDN          {}              Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
   -e, --extra-path STRING                  Add directory to classpath for building. Same as :extra-paths
   -h, --help                               show this help
@@ -269,8 +265,6 @@ Options:
       --extra-java-args JAVA_ARGS                         Extra arguments to pass to the `java` command, e.g. --extra-java-args "-Dfoo=bar -ea"
   -m, --main SYMBOL                                       Main namespace
   -A ALIASES                                              Concatenated aliases of any kind, ex: -A:dev:mem
-  -R ALIASES                                              Concatenated resolve-deps aliases, ex: -R:bench:1.9
-  -C ALIASES                                              Concatenated make-classpath aliases, ex: -C:dev
       --Sdeps EDN              {}                         Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
   -e, --extra-path STRING                                 Add directory to classpath for building. Same as :extra-paths
   -h, --help                                              show this help
