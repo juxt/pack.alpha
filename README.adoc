@@ -15,7 +15,7 @@ Find us in the link:https://clojurians.zulipchat.com/#narrow/stream/151045-JUXT[
 === With tools.build
 
 Pack provides the namespace juxt.pack.api which works well alongside tools.build.
-Find reference documentation on link:[cljdoc].
+Find reference documentation on link:https://github.com/juxt/pack.alpha/blob/master/src/juxt/pack/api.clj[the vars].
 
 === As a tool
 
