@@ -1,25 +1,18 @@
-(ns mach.pack.alpha.one-jar
+(ns ^:no-doc juxt.pack.one-jar
   (:require
     [clojure.java.io :as io]
     [clojure.string :as string]
-    [clojure.tools.cli :as cli]
-    [mach.pack.alpha.impl.tools-deps :as tools-deps]
-    [mach.pack.alpha.impl.elodin :as elodin]
-    [mach.pack.alpha.impl.lib-map :as lib-map]
-    [mach.pack.alpha.impl.vfs :as vfs]
+    [juxt.pack.impl.elodin :as elodin]
+    [juxt.pack.impl.lib-map :as lib-map]
+    [juxt.pack.impl.vfs :as vfs]
     [me.raynes.fs :as fs])
   (:import
-   java.io.File
-   [java.nio.file Files Paths]
+   [java.nio.file Files]
    java.nio.file.attribute.FileAttribute
    java.util.Arrays
    [javax.tools Diagnostic$Kind DiagnosticCollector ToolProvider]))
 
-(defn by-ext
-  [f ext]
-  (.endsWith (.getName f) (str "." ext)))
-
-(defn javac
+(defn- javac
   "Compile java sources. Primitive version for building a self-contained bootstrap"
   [tgt
    options] ;; options passed to java compiler
@@ -38,12 +31,12 @@
             (map
               #(let [file (io/resource %)]
                  (proxy [javax.tools.SimpleJavaFileObject]
-                   [(java.net.URI. (str "string://" (string/replace % #"mach/pack" "")))
+                   [(java.net.URI. (str "string://" (string/replace % #"juxt/pack" "")))
                     javax.tools.JavaFileObject$Kind/SOURCE]
                    (getCharContent [ignoredEncodingErrors]
                      (slurp file))))
-              #_(comment (into [] (comp (filter (memfn isFile)) (map #(string/replace % #"^src/" ""))) (file-seq (io/file "src/mach/pack/alpha/bootstrap/onejar/src/"))))
-              ["mach/pack/alpha/bootstrap/onejar/src/com/simontuffs/onejar/IProperties.java" "mach/pack/alpha/bootstrap/onejar/src/com/simontuffs/onejar/JarClassLoader.java" "mach/pack/alpha/bootstrap/onejar/src/com/simontuffs/onejar/Handler.java" "mach/pack/alpha/bootstrap/onejar/src/com/simontuffs/onejar/OneJarURLConnection.java" "mach/pack/alpha/bootstrap/onejar/src/com/simontuffs/onejar/OneJarFile.java" "mach/pack/alpha/bootstrap/onejar/src/com/simontuffs/onejar/Boot.java" "mach/pack/alpha/bootstrap/onejar/src/OneJar.java"])]
+              #_(comment (into [] (comp (filter (memfn isFile)) (map #(string/replace % #"^src/" ""))) (file-seq (io/file "src/juxt/pack/bootstrap/onejar/src/"))))
+              ["juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/IProperties.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/JarClassLoader.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/Handler.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/OneJarURLConnection.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/OneJarFile.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/Boot.java" "juxt/pack/bootstrap/onejar/src/OneJar.java"])]
         (-> compiler
             (.getTask *err* file-mgr diag-coll opts nil bootstrap)
             (.call))
@@ -81,8 +74,8 @@
            nil)
     bootstrap-p))
 
-(defn write-jar
-  [{::tools-deps/keys [lib-map paths]} jar-location main & [args]]
+(defn- write-jar
+  [{lib-map :libs :as basis} jar-location main & [args]]
   (let [bootstrap-p (create-bootstrap)]
     (vfs/write-vfs
       {:stream (io/output-stream jar-location)
@@ -114,71 +107,25 @@
                    (fn [dir]
                      (let [root (io/file dir)]
                        (vfs/files-path (file-seq root) root)))
-                   paths)}]
+                   (keep
+                     #(when (:path-key (val %))
+                        (key %))
+                     (:classpath basis)))}]
 
-        ;; This code will hoover up important files like the license from
-        ;; OneJar.  but only works in dev, so combine with fireplace's c!! to
-        ;; actually use.
-        #_(comment (into []
-                         (comp (filter (memfn isFile))
-                               (map #(string/replace % #"^src/" ""))
-                               (map (fn [x]
-                                      {:path (elodin/str->path-seq (string/replace x #"^.*resources/" ""))
-                                       :input (list 'io/input-stream (list 'io/resource x))})))
-                         (file-seq (io/file "src/mach/pack/alpha/bootstrap/onejar/resources/"))))
-        [{:path [".version"], :input (io/input-stream (io/resource "mach/pack/alpha/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input (io/input-stream (io/resource "mach/pack/alpha/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
+        [{:path [".version"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
         (let [root (.toFile bootstrap-p)]
           (vfs/files-path
             (filter #(.endsWith (.getName %) ".class") (file-seq root))
             root))))))
 
-(def ^:private cli-options
-  (concat
-    tools-deps/cli-spec
-    [["-m" "--main STRING" "Override the default main of clojure.main. You MUST use AOT compilation with this."
-      :default "clojure.main"]
-     [nil "--args STRING" "Default args to the main"]
-     ["-h" "--help" "show this help"]]))
-
-(defn- usage
-  [summary]
-  (->>
-    ["Usage: clj -m mach.pack.alpha.one-jar [options] <path/to/output.jar>"
-     ""
-     "Options:"
-     summary
-     ""
-     "output.jar is where to put the output uberjar. Leading directories will be created."]
-    (string/join \newline)))
-
-(defn- error-msg [errors]
-  (str "The following errors occurred while parsing your command:\n\n"
-       (string/join \newline errors)))
-
-(defn -main
-  [& args]
-  (let [{{:keys [help
-                 main
-                 args]
-          :as options} :options
-         [output] :arguments
-         :as parsed-opts}
-        (cli/parse-opts args cli-options)
-        errors (cond-> (:errors parsed-opts)
-                 (not output)
-                 (conj "Output jar must be specified"))]
-    (cond
-      help
-      (println (usage (:summary parsed-opts)))
-      errors
-      (println (error-msg errors))
-      :else
-      (do
-        (when (and main (not= main "clojure.main"))
-          (println (format "NOTE: You've specified a custom main.  This usually isn't necessary, you can adjust startup command to `java -jar foo.jar -m %s` and save yourself the trouble of AOT." main)))
-        (write-jar
-          (-> (tools-deps/slurp-deps options)
-              (tools-deps/parse-deps-map options))
-          output
-          main
-          args)))))
+(defn one-jar
+  [{:keys [basis jar-file main-class]
+    :or {main-class "clojure.main"}}]
+  (write-jar
+    basis
+    jar-file
+    main-class
+    ;; :main-opts are specified as for passing to clojure.main
+    (when (= "clojure.main" main-class)
+      (when-let [main-opts (-> basis :classpath-args :main-opts)]
+        (string/join " " (map #(string/escape % {\space "\\ "}) main-opts))))))

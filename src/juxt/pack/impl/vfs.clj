@@ -1,9 +1,9 @@
-(ns mach.pack.alpha.impl.vfs
+(ns juxt.pack.impl.vfs
   (:require
     [clojure.java.io :as io]
     [clojure.walk :refer [postwalk]]
     [clojure.string :as string]
-    [mach.pack.alpha.impl.elodin
+    [juxt.pack.impl.elodin
      :refer [path-seq->str
              path->path-seq]
      :as elodin])

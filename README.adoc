@@ -12,287 +12,52 @@ Find us in the link:https://clojurians.zulipchat.com/#narrow/stream/151045-JUXT[
 
 == Usage
 
-=== Auto-add to project
+=== With tools.build
 
-Pack can add itself to your deps.edn automatically.
-It will not modify your indentation style at all.
-This is alpha, but so is everything else in this project.
+Pack provides the namespace juxt.pack.api which works well alongside tools.build.
+Find reference documentation on link:[cljdoc].
 
-It can be run at later times, in order to automatically bump the sha in your deps.edn.
-It will continue to work even if you rename the default `:pack` alias to something else.
+=== As a tool
 
-NOTE: This isn't infallible.  Please let me know if I break your indentation.
-
-[source,clojure]
-----
-$ clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "dccf2134bcf03726a9465d2b9997c42e5cd91bff"}}}' -m mach.pack.alpha.inject '511c32d4238afb860ad0b16c4827322d80c7d615'
-----
-
-TIP: Latest stable sha is `511c32d4238afb860ad0b16c4827322d80c7d615`.
-
-The following examples assume you have run this.
-
-=== Lambda
-
-The lambda approach will generate a zip which can be uploaded to AWS.
-
-[source,bash]
-.Example call
-----
-$ clj -A:pack mach.pack.alpha.aws-lambda -e classes lambda.zip
-----
-
-In this example:
-
-* lambda.zip is where to write the package to.
-* build_dir is a directory containing extra paths to add, for example it may be where you compile classes to, or write built css to.
-
-
-[source]
-----
-Usage: clj -m mach.pack.alpha.aws-lambda [options] <path/to/output.zip>
-
-Options:
-  -A ALIASES               Concatenated aliases of any kind, ex: -A:dev:mem
-     --Sdeps EDN    {}    Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
-  -e, --extra-path STRING  Add directory to classpath for building. Same as :extra-paths
-  -h, --help               show this help
-
-output.zip is where to put the output zip. Leading directories will be created.
-----
-
-[TIP] 
-====
-Lambda (and by extension, lambada) requires java classes.
-To generate these you will need to AOT your program.
-
-Try this alias:
+Pack also works standalone as a tool you can invoke with deps.edn.
+Add this alias to your project:
 
 [source,clojure]
 ----
-{:aot
- {:extra-paths ["classes"]
-  :main-opts ["-e" "(compile,'example.lambda)"]}}
+;; add this to :aliases:
+:pack {:deps {io.github.juxt/pack {:git/sha ""}}
+       :ns-default juxt.pack.cli.api}
 ----
 
-Then your build process will be like so:
+Then you can invoke it with `clj -T:pack`.
+To see usage information, use `clojure -A:deps -T:pack help/dir`
 
-[source,shell]
-----
-$ mkdir -p classes
-$ clojure -A:aot
-$ clojure -A:pack mach.pack.alpha.aws-lambda -C:aot lambda.zip
-----
+== Features
 
-====
+Pack provides fast, conflict-less, ways to package Clojure programs.
+It provides:
 
-=== Uberjar
+* Docker images
+* AWS Lambda deployment package
+* Self-executable jars (Using One-JAR)
+* "Skinny" jars (Jars which do not contain their dependencies)
+** Library jars
 
-"Uberjar-ing" consists of packaging you application into one all-encompassing JAR (Java ARchive) file, called an "Uberjar", which can then be executed using `java -jar myapp.jar ARG1 ARG2 ARG3...`.
+=== What does conflict-less mean?
 
-Pack provides several approaches for creating an Uberjar:
+Pack will always package your application so you don't need to worry about multiple copies of the same file on the classpath.
+Pack preserves the classpath for all of it's output formats.
 
-==== Capsule
+Uberjars require that files on the classpath are uniquely named.
+To do this, they have to resolve conflicts between files with the same name.
+For example, if you two dependencies com.example/A and com.example/B, and both contain the file "data_readers.clj" in them, what do you do?
+Often configuration is needed to get this right, as many libraries aren't supported out of the box.
+Some tools will even ignore copyright restrictions that require you to keep them in your final jar as a convenience.
 
-This consists of building an Uberjar using http://www.capsule.io/[Parallel Universe's Capsule].
+== Examples
 
-[source,clojure]
-----
-$ clj -A:pack mach.pack.alpha.capsule uberjar.jar -e build-dir --application-id mycoolapp --application-version "$(git describe)" -m myapp.main
-$ java -jar uberjar.jar
-----
+PR your project here!
 
-[source]
-----
-Usage: clj -m mach.pack.alpha.capsule [options] <path/to/output.jar>
-  -m, --main SYMBOL                           main namespace
-      --application-id STRING                 globally unique name for application, used for caching
-      --application-version STRING            unique version for this uberjar, used for caching
-      --system-properties STRING              space-separated list of propName=value pairs, specifying JVM System Properties which will be passed to the application. Maps to the 'System-Properties' entry in the Capsule Manifest.
-      --jvm-args STRING                       space-separated list of JVM argument that will be used to launch the application (e.g "-server -Xms200m -Xmx600m"). Maps to the 'JVM-Args' entry in the Capsule Manifest.
-  -e, --extra-path STRING                     add directory to classpath for building
-      --Sdeps EDN               {}            Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
-  -M, --manifest-entry STRING                 a "Key: Value" pair that will be appended to the Capsule Manifest; useful for conveying arbitrary Manifest entries to the Capsule Manifest. Can be repeated to supply several entries.
-  -h, --help                                  show this help
-----
+== Guides
 
-The main *does not* need `:gen-class`, it follows the same semantics as clojure.main's `-m main`.
-If main is not specified, it will default to `clojure.main`, meaning it can take options like `-m` or `-r`.
-`extra-path` is useful for adding clojurescript & css to the resulting jar.
-It can be used multiple times.
-
-[CAUTION]
-.Executing a Capsule JAR with JVM args / System Properties
-====
-As mentioned in the http://www.capsule.io/user-guide/#the-capsule-execution-process[Capsule docs], when you execute a Capsule-packaged Uberjar, 2 Java processes are actually run: the Capsule launcher, and your application process.
-
-In particular, JVM args and System Properties passed to the `java` command will apply to both processes, which if you're not careful can result in waste of resources and collisions; for example:
-
-* If you pass the `-Xms2g` JVM arg, you've just allocated 2 Gigabytes of unnecessary RAM for the Capsule launcher
-* If you pass the `-Dcom.sun.management.jmxremote.port=7091` System Property you will get an error, as both Java processes try to use the `7091` port for JMX.
-
-The way to prevent this is to pass special options that will only apply to the application process.
-See the http://www.capsule.io/user-guide/#jvm-arguments-system-properties-environment-variables-and-agents[related Capsule documentation].
-====
-
-INFO: In the future I will extend Capsule support to include capsule-specific features, such as caplets and many of the related manifest attributes.
-
-==== OneJAR
-
-link:http://one-jar.sourceforge.net/[OneJAR] builder.
-This is a suitable replacement for jdsoft JCL, without the GPL license.
-It's especially practical where you can't extract into a `~/.capsule` directory, or don't need to bake in JVM args.
-
-[source]
-----
-Usage: clj -m mach.pack.alpha.one-jar [options] <path/to/output.jar>
-
-Options:
-  -e, --extra-path STRING                add directory to classpath for building
-  -d, --deps STRING        deps.edn      deps.edn file location
-      --Sdeps EDN          {}            Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
-  -m, --main STRING        clojure.main  Override the default main of clojure.main. You MUST use AOT compilation with this.
-  -h, --help                             show this help
-
-output.jar is where to put the output uberjar. Leading directories will be created.
-----
-
-Example:
-
-[source,bash]
-----
-$ clj -A:pack mach.pack.alpha.one-jar output.jar
-$ java -jar output.jar
-----
-
-==== jdsoft JarClassLoader
-
-WARNING: This has been removed due to my own licensing concerns about co-locating the source with my own.
-
-=== Skinny JAR
-
-Output a classpath, or subset of it, into directories or jars.
-
-[source]
-----
-Usage: clj -m mach.pack.alpha.skinny [options]
-
-Options:
-      --no-libs                            Skip lib outputs
-      --no-project                         Skip project outputs
-      --lib-dir PATH       target/lib      Where to place the output libraries
-      --lib-type STRING    :jar            Lib type format to use, keep or jar. Keep will keep in original format (jar or dir)
-      --project-path PATH  target/app.jar  Where to place the project output, if it ends with .jar then the project will automatically output as a jar also.
-  -A ALIASES                               Concatenated aliases of any kind, ex: -A:dev:mem
-      --Sdeps EDN          {}              Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
-  -e, --extra-path STRING                  Add directory to classpath for building. Same as :extra-paths
-  -h, --help                               show this help
-----
-
-.Put the entire classpath into jars and run from the filesystem
-====
-
-[source,shell]
-$ clj -A:pack mach.pack.alpha.skinny
-$ java -cp "target/app.jar:target/lib/*" clojure.main
-
-====
-
-.Output only project files into a single jar
-====
-
-[source,shell]
-$ clj -A:pack mach.pack.alpha.skinny --no-libs
-
-====
-
-==== Uploading to Clojars (or Maven)
-
-Using skinny jars, pack can be used to upload artifacts to Clojars.
-This example should be easily modified to work with Maven repositories too, but I haven't tried.
-A full example can be found at link:https://github.com/SevereOverfl0w/super-duper-octo-barnacle[super-duper-octo-barnacle].
-
-. Follow link:https://github.com/clojars/clojars-web/wiki/Pushing#maven[Clojars maven guide] for "settings.xml" only 
-
-. You can generate your jar by passing the `--no-libs` option to your jar.
-Also in this example is `--project-path`, although this is not strictly required.
-I highly recommend putting this in a Makefile or shell script.
-+
-[source,bash]
-----
-clojure -Sdeps '{:deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git" :sha "2769a6224bfb938e777906ea311b3daf7d2220f5"}}}' -m mach.pack.alpha.skinny --no-libs --project-path my-cool-lib.jar
-----
-
-. You will also need a pom.xml, you can generate one with `clojure`:
-+
-[source,bash]
-----
-clojure -Spom
-----
-. Update the pom.xml as necessary to correct your groupId or version.
-Future calls to `pom.xml` won't change them back.
-. Use `mvn` command line to deploy 
-+
-[source,bash]
-----
-mvn deploy:deploy-file -Dfile=my-cool-lib.jar -DrepositoryId=clojars -Durl=https://clojars.org/repo -DpomFile=pom.xml
-----
-
-=== Docker image
-
-Create a Docker image via link:https://github.com/GoogleContainerTools/jib[Jib]. Supports building to local Docker daemon (`--image-type docker`), tarball (`--image-type tar`) and uploading to Docker registries authenticated via `$USER_HOME/.docker/config.json` (`--image-type registry`).
-
-[source]
-----
-Usage: clj -m mach.pack.alpha.jib [options]
-
-Options:
-      --image-name NAME                                   Name of the image
-      --image-type TYPE        docker                     Type of the image, one of: tar, registry, docker
-      --tar-file FILE                                     Tarball file name
-      --base-image BASE-IMAGE  gcr.io/distroless/java:11  Base Docker image to use
-      --include [src:]dest                                Include file or directory, relative to container root
-      --additional-tag TAG                                Additional tag for the image, e.g latest. Repeat to add multiple tags
-      --label LABEL=VALUE                                 Set a label for the image, e.g. GIT_COMMIT=${CI_COMMIT_SHORT_SHA}. Repeat to add multiple labels.
-      --user USER                                         Set the user and group to run the container as. Valid formats are: user, uid, user:group, uid:gid, uid:group, user:gid
-      --creation-time CREATION_TIME_EPOCH                 Set creation time of image in epoch seconds, e.g. $(git log -1 --pretty=format:%ct) Defaults to 0.
-      --from-registry-username USER                       Set the username to use when pulling base image from registry, e.g. gitlab-ci-token.
-      --from-registry-password PASSWORD                   Set the password to use when pulling base image from registry, e.g. ${CI_JOB_TOKEN}.
-      --to-registry-username USER                         Set the username to use when deploying to registry, e.g. gitlab-ci-token.
-      --to-registry-password PASSWORD                     Set the password to use when deploying to registry, e.g. ${CI_JOB_TOKEN}.
-  -q, --quiet                                             Don't print a progress bar nor a start of build message
-  -v, --verbose                                           Print status of image building
-      --extra-java-args JAVA_ARGS                         Extra arguments to pass to the `java` command, e.g. --extra-java-args "-Dfoo=bar -ea"
-  -m, --main SYMBOL                                       Main namespace
-  -A ALIASES                                              Concatenated aliases of any kind, ex: -A:dev:mem
-      --Sdeps EDN              {}                         Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`.
-  -e, --extra-path STRING                                 Add directory to classpath for building. Same as :extra-paths
-  -h, --help                                              show this help
-----
-
-For example, to deploy to Google Container Registry, first perform link:https://cloud.google.com/container-registry/docs/advanced-authentication[authentication] and then specify registry, repository and tag in the image name:
-
-[source]
-----
-clj -A:pack mach.pack.alpha.jib \ 
-    --image-name eu.gcr.io/my-example-project/my-app:1234 \
-    --image-type registry \
-    -m my.main
-----
-
-In order to pass Java system properties to the running container, `JAVA_TOOL_OPTIONS` environment variable can be used. See example in link:https://github.com/GoogleContainerTools/jib/blob/master/docs/faq.md#jvm-flags[Jib FAQ].
-
-==== AOT for better startup speed
-
-For larger apps, link:https://www.clojure.org/guides/deps_and_cli#aot_compilation[Ahead-of-time (AOT)] compilation can signifficantly speedup startup time. This can be done by first compiling Clojure source code to bytecode and then including the bytecode into the Docker image via the `-e` option, for example:
-
-[source]
-----
-$ mkdir classes
-$ clojure -e "(compile 'my.main)"
-$ clj -A:pack mach.pack.alpha.jib \ 
-      --image-name eu.gcr.io/my-example-project/my-app:1234 \
-      --image-type registry \
-      -e classes \
-      -m my.main
-----
+PR your guide here!

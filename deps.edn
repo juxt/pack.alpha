@@ -1,9 +1,10 @@
 {:paths ["src"]
  :deps {org.clojure/tools.deps.alpha {:mvn/version "0.12.1076"}
-        org.slf4j/slf4j-nop {:mvn/version "1.6.2"}
+        ;; TODO: Migrate to clj-commons
         me.raynes/fs {:mvn/version "1.4.6"}
-        co.paralleluniverse/capsule {:mvn/version "1.0.3"}
-        org.clojure/tools.cli {:mvn/version "1.0.206"}
-        rewrite-clj/rewrite-clj {:mvn/version "0.6.0"}
-        com.google.cloud.tools/jib-core {:mvn/version "0.17.0"}
-        progrock/progrock {:mvn/version "0.1.2"}}}
+        com.google.cloud.tools/jib-core {:mvn/version "0.17.0"}}
+ 
+ :aliases {:pack {:deps {io.github.juxt/pack {:local/root "."}}
+                  :ns-default juxt.pack.cli.api}
+           :library {:exec-args {:path "pack-library.jar"}
+                     :exec-fn library}}}

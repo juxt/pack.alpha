@@ -1,4 +1,4 @@
-(ns mach.pack.alpha.impl.elodin
+(ns juxt.pack.impl.elodin
   "Master namer elodin will fulfill your naming needs.
 
   Provides functionality for naming a file suitable for use in archives."

@@ -1,4 +1,4 @@
-(ns mach.pack.alpha.impl.lib-map
+(ns juxt.pack.impl.lib-map
   (:require
     [clojure.java.io :as io]))
 

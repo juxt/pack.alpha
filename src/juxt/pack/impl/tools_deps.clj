@@ -1,4 +1,4 @@
-(ns mach.pack.alpha.impl.tools-deps
+(ns juxt.pack.impl.tools-deps
   "Generic integration with tools-deps which was duplicated across
   implementations.  Provides support for tools.cli too."
   (:require
@@ -19,28 +19,6 @@
       #(if-let [i (string/index-of % \/)]
          (keyword (subs % 0 i) (subs % (inc i)))
          (keyword %)))))
-
-(def cli-spec
-  [[:short-opt "-A" :required "ALIASES" :id ::aliases
-    :desc "Concatenated aliases of any kind, ex: -A:dev:mem"
-    :parse-fn parse-kws
-    :assoc-fn (fn [m k v] (update m k concat v))]
-   ["-e" "--extra-path STRING" "Add directory to classpath for building. Same as :extra-paths"
-    :assoc-fn (fn [m k v] (update m k conj v))
-    :id ::extra]
-   [nil "--Sdeps EDN" "Deps data to use as the last deps map to be merged by tool.deps when pulling dependencies at build time. Equivalent to `clj -Sdeps EDN`."
-    :id ::sdeps
-    :parse-fn edn/read-string
-    :default {}]
-   #_["-d" "--deps STRING" "deps.edn file location"
-      :default "deps.edn"
-      :validate [(comp (memfn exists) io/file) "deps.edn file must exist"]
-      :id ::deps-path]])
-
-(comment
-  (require '[clojure.tools.cli :as cli])
-
-  (cli/parse-opts ["-A:foo:bar" "-A:definitely"] cli-spec))
 
 (defn config-edn
   []
