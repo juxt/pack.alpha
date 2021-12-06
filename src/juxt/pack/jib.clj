@@ -76,7 +76,7 @@
                   (update :builder #(.addEntry %
                                                (Paths/get path string-array)
                                                container-path))
-                  (update :container-paths conj container-path))))
+                  (assoc-in [:container-paths path] container-path))))
           {:builder (-> (FileEntriesLayer/builder)
                         (.setName "library jars"))
            :container-paths nil}
@@ -93,7 +93,7 @@
                   (update :builder #(.addEntryRecursive %
                                                         (Paths/get path string-array)
                                                         container-path))
-                  (update :container-paths conj container-path))))
+                  (assoc-in [:container-paths path] container-path))))
           {:builder (-> (FileEntriesLayer/builder)
                         (.setName "library directories"))
            :container-paths nil}
@@ -114,7 +114,7 @@
                                                       container-path
                                                       FileEntriesLayer/DEFAULT_FILE_PERMISSIONS_PROVIDER
                                                       timestamp-provider))
-                (update :container-paths conj container-path)))
+                (assoc-in [:container-paths project-path] container-path)))
           acc)))
     {:builder (-> (FileEntriesLayer/builder)
                   (.setName "project directories"))
@@ -194,8 +194,12 @@
                               (-> basis :classpath-args :jvm-opts)
                               ["-cp"
                                ;; TODO: It would be useful to preserve the order that tdeps produces for the claspath
-                               (str/join ":" (map str (mapcat :container-paths layers)))
-
+                               (let [container-paths (apply merge-with merge (map :container-paths layers))]
+                                 (str/join
+                                   ":"
+                                   (map
+                                     #(str (get container-paths %))
+                                     (:classpath-roots basis))))
                                "clojure.main"]
                               (-> basis :classpath-args :main-opts))))
         (.containerize
