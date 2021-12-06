@@ -25,3 +25,9 @@
 (defn lib-dirs
   [lib-map]
   (extract-paths lib-map #(.isDirectory (io/file %))))
+
+(defn classify
+  [path]
+  (cond
+    (file-ext? (io/file path) "jar") :jar
+    (.isDirectory (io/file path)) :dir))

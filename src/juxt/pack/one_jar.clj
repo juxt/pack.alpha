@@ -75,7 +75,7 @@
     bootstrap-p))
 
 (defn- write-jar
-  [{lib-map :libs :as basis} jar-location main & [args]]
+  [basis jar-location main & [args]]
   (let [bootstrap-p (create-bootstrap)]
     (vfs/write-vfs
       {:stream (io/output-stream jar-location)
@@ -90,28 +90,25 @@
                       [["One-Jar-Main-Args" args]]))}}
 
       (concat
-        [{:path ["lib" "project.jar"]
-          :paths (mapcat
-                   (fn [dir]
-                     (let [root (io/file dir)]
-                       (vfs/files-path (file-seq root) root)))
-                   (keep
-                     #(when (:path-key (val %))
-                        (key %))
-                     (:classpath basis)))}]
-
         (map
-          (fn [{:keys [path] :as all}]
-            {:input (io/input-stream path)
-             :path ["lib" (elodin/jar-name all)]})
-          (lib-map/lib-jars lib-map))
-
-        (map
-          (fn [{:keys [path] :as all}]
-            {:paths (vfs/files-path (file-seq (io/file path)) (io/file path))
-             :path ["lib" (format "%s.jar" (elodin/directory-name all))]})
-          (lib-map/lib-dirs lib-map))
-
+          (fn [root]
+            (let [{:keys [path-key lib-name]} (get-in basis [:classpath root])]
+              (cond
+                path-key
+                {:path ["lib" (str "project-" root ".jar")]
+                 :paths (vfs/files-path (file-seq (io/file root))
+                                        (io/file root))}
+                lib-name
+                (let [coordinate (assoc (get-in basis [:libs lib-name])
+                                        :lib lib-name
+                                        :path root)]
+                  (case (lib-map/classify root)
+                    :jar {:input (io/input-stream root)
+                          :path ["lib" (elodin/jar-name coordinate)]}
+                    :dir {:paths (vfs/files-path (file-seq (io/file root)) (io/file root))
+                          :path ["lib" (format "%s.jar" (elodin/directory-name coordinate))]})))))
+          (:classpath-roots basis))
+        
         [{:path [".version"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
         (let [root (.toFile bootstrap-p)]
           (vfs/files-path
