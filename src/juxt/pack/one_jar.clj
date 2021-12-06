@@ -90,6 +90,16 @@
                       [["One-Jar-Main-Args" args]]))}}
 
       (concat
+        [{:path ["lib" "project.jar"]
+          :paths (mapcat
+                   (fn [dir]
+                     (let [root (io/file dir)]
+                       (vfs/files-path (file-seq root) root)))
+                   (keep
+                     #(when (:path-key (val %))
+                        (key %))
+                     (:classpath basis)))}]
+
         (map
           (fn [{:keys [path] :as all}]
             {:input (io/input-stream path)
@@ -101,16 +111,6 @@
             {:paths (vfs/files-path (file-seq (io/file path)) (io/file path))
              :path ["lib" (format "%s.jar" (elodin/directory-name all))]})
           (lib-map/lib-dirs lib-map))
-
-        [{:path ["lib" "project.jar"]
-          :paths (mapcat
-                   (fn [dir]
-                     (let [root (io/file dir)]
-                       (vfs/files-path (file-seq root) root)))
-                   (keep
-                     #(when (:path-key (val %))
-                        (key %))
-                     (:classpath basis)))}]
 
         [{:path [".version"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
         (let [root (.toFile bootstrap-p)]
