@@ -41,7 +41,7 @@ It provides:
 * AWS Lambda deployment package
 * Self-executable jars (Using One-JAR)
 * "Skinny" jars (Jars which do not contain their dependencies)
-** Library jars
+* Library jars
 
 === What does conflict-less mean?
 

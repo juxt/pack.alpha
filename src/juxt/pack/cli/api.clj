@@ -68,10 +68,12 @@
   
   Options
     :basis - basis to use, if not provided will create a basis without :user
-    :path - required, location to output library to"
+    :path - required, location to output library to
+    :pom - input pom.xml, if provided will be copied to
+           META-INF/maven/<group>/<artifact>/pom.xml
+    :lib - required if :pom supplied, used to create pom.xml path"
   [{:keys [basis] :as params}]
-  (skinny {:path (:path params)
-           :path-coerce :jar}))
+  (pack/library (assoc params :basis (or basis (create-basis nil)))))
 
 (defn aws-lambda
   "Produce a zip file that can be uploaded to AWS lambda.  You will need to AOT
