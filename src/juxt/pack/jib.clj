@@ -145,17 +145,19 @@
           layers))
 
 (defn add-include-layers [jib-container-builder includes]
-  (reduce (fn [jib-container-builder* include]
-            (.addLayer jib-container-builder*
-                       [(Paths/get (first (.split include ":")) string-array)]
-                       (AbsoluteUnixPath/get (last (.split include ":")))))
-          jib-container-builder
-          includes))
+  (reduce-kv (fn [jib-container-builder* dest files]
+               (.addLayer jib-container-builder*
+                          (map #(Paths/get % string-array) files)
+                          (AbsoluteUnixPath/get dest)))
+             jib-container-builder
+             includes))
 
 (defn jib
   [{:keys [basis
 
            base-image from-registry-username from-registry-password
+
+           include
 
            image-type
            image-name
@@ -181,8 +183,7 @@
     (-> (Jib/from base-image-with-creds)
         (add-labels labels)
         (.setUser user)
-        ;; TODO: Reinstate with a clojure-y api
-        #_(add-include-layers include)
+        (add-include-layers include)
         (.setCreationTime creation-time)
         (add-layers layers)
         ;; TODO: maybe parameterize target-dir

@@ -13,8 +13,14 @@
     :image-name - required, name of the docker image
     :image-type - required, keyword of type of image to produce
     :tar-file - tar file to create
-    :include - Not yet implemented
-    :volumes - optional, a set of file path strings that may hold externally mounted volumes
+    :include - optional, a map the keys are strings representing the
+               destination paths within the image. The values are a sequence
+               of paths (as strings) which should be copied to the specified
+               destination.  Each k/v pair adds a new layer to the underlying
+               docker image.
+
+    :volumes - optional, a set of file path strings that may hold
+               externally mounted volumes.
 
 
     Runtime:
