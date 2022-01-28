@@ -7,13 +7,15 @@
   form (e.g. gitlibs/:paths are directories).
 
   :jvm-opts and :main-opts are used from :basis, so use :aliases to set it.
-  
+
   Options:
     :basis - required, used to get paths, deps jvm opts, and main opts
     :image-name - required, name of the docker image
     :image-type - required, keyword of type of image to produce
     :tar-file - tar file to create
     :include - Not yet implemented
+    :volumes - optional, a set of file path strings that may hold externally mounted volumes
+
 
     Runtime:
     :base-image - base docker image to use, default = gcr.io/distroless/java:11
@@ -30,7 +32,7 @@
 
     Repeatability:
     :creation-time - java.time.Instant to set creation time of image to, default = (Instant/now)
-   
+
   Image types:
     :docker - Upload to docker daemon
     :registry - Upload to a registry, uses :to-registry if set,
@@ -57,7 +59,7 @@
 
 (defn library
   "Produce a library from :paths in a basis
-  
+
   Options
     :basis - required, basis to create library from
     :path - required, location to output library to
@@ -71,10 +73,10 @@
   "Produce a zip file that can be uploaded to AWS lambda.  You will need to AOT
   prior to building this lambda zip, and then include your aot alias in the
   basis.
-  
+
   libs are converted into jars if they are directories. paths are put straight
   into the zip file.
-  
+
   Options
     :basis - required, basis to use to get deps and paths
     :lambda-file - required, lambda file to create"
@@ -88,7 +90,7 @@
   :main-opts from basis will be used as default arguments to the jar.  Create
   an alias with `{:main-opts [\"-m\" \"my.cool.ns\"]}` to specify a startup
   namespace.
-  
+
   Caveats
     - The version of One-Jar is patched to fix miscellaneous bugs
     - This may be replaced with Uno-Jar in the future
