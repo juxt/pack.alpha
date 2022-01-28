@@ -23,6 +23,7 @@
     :tar-file - tar file to create
     :include - Not yet implemented
     :env - map of environment variables to set
+    :volumes - set of absolute path strings that may hold externally mounted volumes
 
     Runtime:
     :base-image - base docker image to use, default = gcr.io/distroless/java:11

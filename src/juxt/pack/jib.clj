@@ -167,6 +167,8 @@
            labels
            tags
 
+           volumes
+
            creation-time
            user]
     :or {base-image "gcr.io/distroless/java:11"
@@ -191,6 +193,7 @@
         ;; TODO: maybe parameterize target-dir
         (.setWorkingDirectory (AbsoluteUnixPath/get target-dir))
         (.setEnvironment env)
+        (.setVolumes (into #{} (map #(AbsoluteUnixPath/get %)) volumes) )
         (.setEntrypoint
           (into-array String
                       (concat ["java"
