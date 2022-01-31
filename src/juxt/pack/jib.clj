@@ -157,6 +157,7 @@
 
            base-image from-registry-username from-registry-password
 
+           env
            image-type
            image-name
            tar-file
@@ -169,7 +170,8 @@
            creation-time
            user]
     :or {base-image "gcr.io/distroless/java:11"
-         creation-time (java.time.Instant/now)}}]
+         creation-time (java.time.Instant/now)
+         env {}}}]
   (let [tar-file (if (string? tar-file)
                    (Paths/get tar-file string-array)
                    tar-file)
@@ -188,6 +190,7 @@
         (add-layers layers)
         ;; TODO: maybe parameterize target-dir
         (.setWorkingDirectory (AbsoluteUnixPath/get target-dir))
+        (.setEnvironment env)
         (.setEntrypoint
           (into-array String
                       (concat ["java"

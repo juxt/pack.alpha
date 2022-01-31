@@ -22,6 +22,7 @@
     :image-type - required, keyword of type of image to produce
     :tar-file - tar file to create
     :include - Not yet implemented
+    :env - map of environment variables to set
 
     Runtime:
     :base-image - base docker image to use, default = gcr.io/distroless/java:11
