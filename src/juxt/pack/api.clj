@@ -22,6 +22,8 @@
     :volumes - optional, a set of file path strings that may hold
                externally mounted volumes.
 
+    :environment - optional, a map of environment variables (strings) to their
+                   values (strings)
 
     Runtime:
     :base-image - base docker image to use, default = gcr.io/distroless/java:11

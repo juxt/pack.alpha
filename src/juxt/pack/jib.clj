@@ -158,6 +158,7 @@
            base-image from-registry-username from-registry-password
 
            include
+           environment
 
            image-type
            image-name
@@ -173,7 +174,8 @@
            creation-time
            user]
     :or {base-image "gcr.io/distroless/java:11"
-         creation-time (java.time.Instant/now)}}]
+         creation-time (java.time.Instant/now)
+         environment {}}}]
   (let [lib-jars-layer (make-lib-jars-layer (:libs basis))
         lib-dirs-layer (make-lib-dirs-layer (:libs basis))
         project-dirs-layer (make-project-dirs-layer basis)
@@ -189,6 +191,7 @@
         ;; TODO: maybe parameterize target-dir
         (.setWorkingDirectory (AbsoluteUnixPath/get target-dir))
         (.setVolumes (into #{} (map #(AbsoluteUnixPath/get %)) volumes) )
+        (.setEnvironment environment)
         (.setEntrypoint
           (into-array String
                       (concat ["java"
