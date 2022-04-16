@@ -178,11 +178,13 @@
            tags
 
            volumes
+           layers
 
            creation-time
            user]
     :or {base-image "gcr.io/distroless/java:11"
          creation-time (java.time.Instant/now)
+         layers [:libs :paths]
          env {}}}]
   (let [tar-file (if (string? tar-file)
                    (Paths/get tar-file string-array)
@@ -193,10 +195,15 @@
     (-> (Jib/from base-image-with-creds)
         (add-labels labels)
         (.setUser user)
-        ;; TODO: Reinstate with a clojure-y api
-        #_(add-include-layers include)
         (.setCreationTime creation-time)
-        (set-layers [libs-layer paths-layer])
+        (set-layers
+          (map
+            (fn [layer]
+              (cond
+                (= :libs layer) libs-layer
+                (= :paths layer) paths-layer
+                :else layer))
+            layers))
         ;; TODO: maybe parameterize target-dir
         (.setWorkingDirectory (AbsoluteUnixPath/get target-dir))
         (.setEnvironment env)
