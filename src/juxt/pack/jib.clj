@@ -170,7 +170,10 @@
            user]
     :or {base-image "gcr.io/distroless/java:11"
          creation-time (java.time.Instant/now)}}]
-  (let [lib-jars-layer (make-lib-jars-layer (:libs basis))
+  (let [tar-file (if (string? tar-file)
+                   (Paths/get tar-file string-array)
+                   tar-file)
+        lib-jars-layer (make-lib-jars-layer (:libs basis))
         lib-dirs-layer (make-lib-dirs-layer (:libs basis))
         project-dirs-layer (make-project-dirs-layer basis)
         layers [lib-jars-layer lib-dirs-layer project-dirs-layer]
