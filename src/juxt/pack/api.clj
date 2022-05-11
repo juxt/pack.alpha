@@ -13,9 +13,13 @@
     :image-name - required, name of the docker image
     :image-type - required, keyword of type of image to produce
     :tar-file - tar file to create
-    :include - Not yet implemented
     :env - map of environment variables to set
     :volumes - set of absolute path strings that may hold externally mounted volumes
+    :layers - ordered coll of:
+                :paths - built-in layer, paths from basis
+                :libs - built-in layer, libs from basis
+                instance of Jib FileEntriesLayer
+              default = [:libs :paths]
 
     Runtime:
     :base-image - base docker image to use, default = gcr.io/distroless/java:11
