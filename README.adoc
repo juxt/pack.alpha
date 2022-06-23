@@ -30,7 +30,7 @@ Add this alias to your project:
 ----
 
 Then you can invoke it with `clj -T:pack`.
-To see usage information, use `clojure -A:deps -T:pack help/dir`
+To see usage information, use `clojure -A:deps -T:pack help/doc`.
 
 == Features
 
