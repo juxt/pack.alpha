@@ -101,14 +101,17 @@
                 lib-name
                 (let [coordinate (assoc (get-in basis [:libs lib-name])
                                         :lib lib-name
-                                        :path root)]
-                  (case (lib-map/classify root)
+                                        :path root)
+                      classification (lib-map/classify root)]
+                  (assert classification
+                          (format "Cannot classify path: %s. This is usually a bug in either the project or library deps.edn. The following var was nil:" root))
+                  (case classification
                     :jar {:input (io/input-stream root)
                           :path ["lib" (elodin/jar-name coordinate)]}
                     :dir {:paths (vfs/files-path (file-seq (io/file root)) (io/file root))
                           :path ["lib" (format "%s.jar" (elodin/directory-name coordinate))]})))))
           (:classpath-roots basis))
-        
+
         [{:path [".version"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
         (let [root (.toFile bootstrap-p)]
           (vfs/files-path

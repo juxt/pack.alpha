@@ -30,4 +30,5 @@
   [path]
   (cond
     (file-ext? (io/file path) "jar") :jar
-    (.isDirectory (io/file path)) :dir))
+    (.isDirectory (io/file path)) :dir
+    :else nil))
