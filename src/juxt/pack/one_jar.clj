@@ -21,8 +21,7 @@
         compiler  (or (ToolProvider/getSystemJavaCompiler)
                       (throw (Exception. "The java compiler is not working. Please make sure you use a JDK!")))]
     (with-open [file-mgr (.getStandardFileManager compiler diag-coll nil nil)]
-      (let [file-mgr (.getStandardFileManager compiler diag-coll nil nil)
-            opts (->> ["-d"  (.getPath tgt)]
+      (let [opts (->> ["-d"  (.getPath tgt)]
                       (concat options)
                       (into-array String)
                       Arrays/asList)
