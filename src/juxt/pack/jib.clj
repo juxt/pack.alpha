@@ -1,7 +1,9 @@
 (ns ^:no-doc juxt.pack.jib
-  (:require [juxt.pack.impl.lib-map :as lib-map]
+  (:require [borkdude.dynaload :refer [dynaload]]
+            [juxt.pack.impl.lib-map :as lib-map]
             [juxt.pack.impl.elodin :as elodin]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [clojure.java.io :as io])
   (:import (com.google.cloud.tools.jib.api Jib JibContainerBuilder)
            (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath ModificationTimeProvider FileEntriesLayer)
            (java.nio.file Paths Files LinkOption FileSystems)
@@ -108,9 +110,18 @@
                                   (Paths/get (:path all) string-array)
                                   container-path)}))
 
+
+(def ^:private resolve-path (dynaload 'clojure.tools.build.api/resolve-path {:default io/file}))
+
+
+(defn- resolve-root
+  [root]
+  (.getPath (resolve-path root)))
+
+
 (defn- add-paths-entry
   [builder root]
-  (let [path (Paths/get root string-array)]
+  (let [path (Paths/get (resolve-root root) string-array)]
     (when (Files/exists path (into-array LinkOption []))
       (let [container-path (AbsoluteUnixPath/get (str target-dir
                                                       "/"
