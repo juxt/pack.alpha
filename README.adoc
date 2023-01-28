@@ -18,7 +18,7 @@ Pack provides the namespace juxt.pack.api which works well alongside tools.build
 Find reference documentation on link:https://github.com/juxt/pack.alpha/blob/master/src/juxt/pack/api.clj[the vars].
 
 When using tools.build in a monorepo with multiple projects, it can be useful to leverage `clojure.tools.build.api/with-project-root` to specify the directory
-containing the deps.edn file for a particular project. Pack supports `with-project-root` by taking advantage of the included [tools.deps]https://github.com/clojure/tools.deps) library.
+containing the deps.edn file for a particular project. Pack supports `with-project-root` by taking advantage of the included link:https://github.com/clojure/tools.deps[tools.deps] library.
 Simply wrap all Pack calls with `clojure.tools.deps.util.dir/with-dir` and pass the tools.build project root as the first argument.
 
 [source,clojure]
