@@ -144,7 +144,8 @@
                   {:keys [container-path builder]}
                   (case (lib-map/classify root)
                     :jar (add-lib-jar-entry (:libs-layer layers) coordinate)
-                    :dir (add-lib-dir-entry (:libs-layer layers) coordinate))]
+                    :dir (add-lib-dir-entry (:libs-layer layers) coordinate)
+                    (throw (ex-info "Cannot classify path as jar or dir" {:path root :lib lib-name})))]
               (-> layers
                   (assoc :libs-layer builder)
                   (assoc-in [:container-roots root] container-path))))))
