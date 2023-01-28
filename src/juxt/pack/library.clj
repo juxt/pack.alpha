@@ -1,5 +1,6 @@
 (ns ^:no-doc juxt.pack.library
   (:require
+    [clojure.tools.deps.util.dir :refer [canonicalize]]
     [clojure.java.io :as io]
     [juxt.pack.impl.vfs :as vfs]))
 
@@ -17,7 +18,7 @@
                   (io/file path)))
               (keep
                 #(when (:path-key (val %))
-                   (key %))
+                   (canonicalize (io/file (key %))))
                 (:classpath basis))))))
 
 (defn library

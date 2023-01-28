@@ -1,5 +1,6 @@
 (ns ^:no-doc juxt.pack.one-jar
   (:require
+    [clojure.tools.deps.util.dir :refer [canonicalize]]
     [clojure.java.io :as io]
     [clojure.string :as string]
     [juxt.pack.impl.elodin :as elodin]
@@ -94,9 +95,9 @@
             (let [{:keys [path-key lib-name]} (get-in basis [:classpath root])]
               (cond
                 path-key
-                {:path ["lib" (str "project-" root ".jar")]
-                 :paths (vfs/files-path (file-seq (io/file root))
-                                        (io/file root))}
+                (let [src-root (canonicalize (io/file root))]
+                  {:path ["lib" (str "project-" root ".jar")]
+                   :paths (vfs/files-path (file-seq src-root) src-root)})
                 lib-name
                 (let [coordinate (assoc (get-in basis [:libs lib-name])
                                         :lib lib-name

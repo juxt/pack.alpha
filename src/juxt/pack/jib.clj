@@ -1,5 +1,6 @@
 (ns ^:no-doc juxt.pack.jib
-  (:require [juxt.pack.impl.lib-map :as lib-map]
+  (:require [clojure.tools.deps.util.dir :refer [*the-dir*]]
+            [juxt.pack.impl.lib-map :as lib-map]
             [juxt.pack.impl.elodin :as elodin]
             [clojure.string :as str])
   (:import (com.google.cloud.tools.jib.api Jib JibContainerBuilder)
@@ -110,14 +111,14 @@
 
 (defn- add-paths-entry
   [builder root]
-  (let [path (Paths/get root string-array)]
-    (when (Files/exists path (into-array LinkOption []))
-      (let [container-path (AbsoluteUnixPath/get (str target-dir
-                                                      "/"
-                                                      (unique-base-path path)))]
+  (let [raw-path (Paths/get root string-array)
+        src-path (.resolve (.toPath *the-dir*) raw-path)]
+    (when (Files/exists src-path (into-array LinkOption []))
+      (let [container-path (AbsoluteUnixPath/get
+                             (str target-dir "/" (unique-base-path raw-path)))]
         {:builder
          (.addEntryRecursive builder
-                             path
+                             src-path
                              container-path
                              FileEntriesLayer/DEFAULT_FILE_PERMISSIONS_PROVIDER
                              timestamp-provider)

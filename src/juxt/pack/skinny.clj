@@ -1,5 +1,6 @@
 (ns ^:no-doc juxt.pack.skinny
   (:require
+    [clojure.tools.deps.util.dir :refer [canonicalize]]
     [clojure.java.io :as io]
     [clojure.string :as string]
     [juxt.pack.impl.elodin :as elodin]
@@ -11,7 +12,7 @@
   (io/make-parents (io/file output-path))
   (let [paths (keep
                 #(when (:path-key (val %))
-                   (key %))
+                   (canonicalize (io/file (key %))))
                 (:classpath basis))]
     (case output-target
       :jar (vfs/write-vfs

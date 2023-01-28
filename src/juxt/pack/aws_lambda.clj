@@ -1,6 +1,7 @@
 (ns ^:no-doc juxt.pack.aws-lambda
   (:require
     [clojure.java.io :as io]
+    [clojure.tools.deps.util.dir :refer [canonicalize]]
     [juxt.pack.impl.elodin :as elodin]
     [juxt.pack.impl.vfs :as vfs]
     [juxt.pack.impl.lib-map :as lib-map]))
@@ -33,7 +34,7 @@
               root)))
         (keep
           #(when (:path-key (val %))
-             (key %))
+             (canonicalize (io/file (key %))))
           (:classpath basis))))))
 
 (defn aws-lambda
