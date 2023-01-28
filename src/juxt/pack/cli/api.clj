@@ -1,6 +1,6 @@
 (ns juxt.pack.cli.api
   (:require
-    [clojure.tools.deps.alpha :as deps]
+    [clojure.tools.deps :as deps]
     [juxt.pack.api :as pack]))
 
 (defn create-basis
