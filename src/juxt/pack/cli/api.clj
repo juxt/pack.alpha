@@ -5,7 +5,7 @@
 
 (defn create-basis
   "Like deps/create-basis, but excludes :user deps.edn"
-  [{:keys [basis] :as params}]
+  [{:as params}]
   (deps/create-basis (merge {:user nil} params)))
 
 (defn docker
