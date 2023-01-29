@@ -28,6 +28,8 @@
 
 (defn classify
   [path]
-  (cond
-    (file-ext? (io/file path) "jar") :jar
-    (.isDirectory (io/file path)) :dir))
+  (let [f (io/file path)]
+    (cond
+      (file-ext? f "jar") :jar
+      (.isDirectory f) :dir
+      (not (.exists f)) :dne)))

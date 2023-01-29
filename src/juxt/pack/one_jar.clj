@@ -90,7 +90,7 @@
                       [["One-Jar-Main-Args" args]]))}}
 
       (concat
-        (map
+        (keep
           (fn [root]
             (let [{:keys [path-key lib-name]} (get-in basis [:classpath root])]
               (cond
@@ -107,6 +107,7 @@
                           :path ["lib" (elodin/jar-name coordinate)]}
                     :dir {:paths (vfs/files-path (file-seq (io/file root)) (io/file root))
                           :path ["lib" (format "%s.jar" (elodin/directory-name coordinate))]}
+                    :dne nil
                     (throw (ex-info "Cannot classify path as jar or dir" {:path root :lib lib-name})))))))
           (:classpath-roots basis))
 

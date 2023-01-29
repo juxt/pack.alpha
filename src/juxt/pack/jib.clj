@@ -146,10 +146,13 @@
                   (case (lib-map/classify root)
                     :jar (add-lib-jar-entry (:libs-layer layers) coordinate)
                     :dir (add-lib-dir-entry (:libs-layer layers) coordinate)
+                    :dne {:builder (:libs-layer layers)}
                     (throw (ex-info "Cannot classify path as jar or dir" {:path root :lib lib-name})))]
-              (-> layers
-                  (assoc :libs-layer builder)
-                  (assoc-in [:container-roots root] container-path))))))
+              (cond-> layers
+                true
+                (assoc :libs-layer builder)
+                container-path
+                (assoc-in [:container-roots root] container-path))))))
 
       {:paths-layer (-> (FileEntriesLayer/builder)
                         (.setName "Paths"))
