@@ -126,5 +126,5 @@
     main-class
     ;; :main-opts are specified as for passing to clojure.main
     (when (= "clojure.main" main-class)
-      (when-let [main-opts (-> basis :classpath-args :main-opts)]
+      (when-let [main-opts (-> basis :argmap :main-opts)]
         (string/join " " (map #(string/escape % {\space "\\ "}) main-opts))))))

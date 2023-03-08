@@ -219,14 +219,14 @@
                                ;; Early in case users override in :jvm-opts
                                "-Dclojure.main.report=stderr"
                                "-Dfile.encoding=UTF-8"]
-                              (-> basis :classpath-args :jvm-opts)
+                              (-> basis :argmap :jvm-opts)
                               ["-cp"
                                (str/join ":"
                                          (map
                                            #(str (get container-roots %))
                                            (:classpath-roots basis)))
                                "clojure.main"]
-                              (-> basis :classpath-args :main-opts))))
+                              (-> basis :argmap :main-opts))))
         (.containerize
           (add-additional-tags
             (make-containerizer
