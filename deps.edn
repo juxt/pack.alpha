@@ -2,8 +2,8 @@
  :deps {org.clojure/tools.deps {:mvn/version "0.17.1297"}
         ;; TODO: Migrate to clj-commons
         me.raynes/fs {:mvn/version "1.4.6"}
-        com.google.cloud.tools/jib-core {:mvn/version "0.21.0"}}
- 
+        com.google.cloud.tools/jib-core {:mvn/version "0.23.0"}}
+
  :aliases {:pack {:deps {io.github.juxt/pack {:local/root "."}}
                   :ns-default juxt.pack.cli.api}
            :library {:exec-args {:path "pack-library.jar"}
