@@ -227,7 +227,7 @@
                                            #(str (get container-roots %))
                                            (:classpath-roots basis)))
                                "clojure.main"]
-                              (-> basis :classpath-args :main-opts))))
+                              (-> basis :argmap :main-opts))))
         (cond-> (seq platforms)
           (.setPlatforms
            (into #{} (map #(Platform. (name %) (namespace %)) platforms))))
