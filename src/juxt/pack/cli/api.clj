@@ -27,6 +27,8 @@
                 :paths - built-in layer, paths from basis
                 :libs - built-in layer, libs from basis
               default = [:libs :paths]
+    :platforms - optional, a set of keywords of the form :<os>/<architecture>
+                 e.g. #{:linux/amd64 :linux/arm64}
 
     Runtime:
     :base-image - base docker image to use, default = gcr.io/distroless/java:11
