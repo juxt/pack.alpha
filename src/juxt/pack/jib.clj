@@ -67,22 +67,71 @@
         (Instant/ofEpochSecond 8589934591)
         FileEntriesLayer/DEFAULT_MODIFICATION_TIME))))
 
+;; Very loose port of https://github.com/GoogleContainerTools/jib/blob/97ed78631c516117cc8fc837d76c58ad8e668e6e/jib-plugins-common/src/main/java/com/google/cloud/tools/jib/plugins/common/DefaultCredentialRetrievers.java#L157
+(let [xdg-auth-file (Paths/get "containers" (into-array ["auth.json"]))
+      docker-config-file (Paths/get "config.json" string-array)
+      k8s-docker-file(Paths/get "config.json" string-array)]
+  (defn- docker-config-files
+    []
+    (distinct
+      (keep identity
+            [(some-> (System/getenv "XDG_RUNTIME_DIR") (Paths/get string-array) (.resolve xdg-auth-file))
+             (some-> (System/getenv "XDG_CONFIG_HOME") (Paths/get string-array) (.resolve xdg-auth-file))
+             (some-> (System/getProperty "user.home") (Paths/get string-array) (.resolve ".config") (.resolve xdg-auth-file))
+             (some-> (System/getenv "HOME") (Paths/get string-array) (.resolve ".config") (.resolve xdg-auth-file))
+
+             (some-> (System/getenv "DOCKER_CONFIG") (Paths/get string-array) (.resolve docker-config-file))
+             (some-> (System/getenv "DOCKER_CONFIG") (Paths/get string-array) (.resolve k8s-docker-file))
+
+             (some-> (System/getProperty "user.home") (Paths/get string-array) (.resolve ".docker") (.resolve docker-config-file))
+             (some-> (System/getProperty "user.home") (Paths/get string-array) (.resolve ".docker") (.resolve k8s-docker-file))
+
+             (some-> (System/getenv "HOME") (Paths/get string-array) (.resolve ".docker") (.resolve docker-config-file))
+             (some-> (System/getenv "HOME") (Paths/get string-array) (.resolve ".docker") (.resolve k8s-docker-file)) ]))))
+
+(let [legacy-docker-config-file (Paths/get "config.json" string-array)]
+  (defn- legacy-docker-config-files
+    []
+    (distinct
+      (keep identity
+            [(some-> (System/getenv "DOCKER_CONFIG") (Paths/get string-array) (.resolve legacy-docker-config-file))
+             (some-> (System/getProperty "user.home") (Paths/get string-array) (.resolve ".docker") (.resolve legacy-docker-config-file))
+             (some-> (System/getenv "HOME") (Paths/get string-array) (.resolve ".docker") (.resolve legacy-docker-config-file))]))))
+
+(defn- default-credential-retrievers
+  [^CredentialRetrieverFactory factory & {:keys [credential]}]
+  (cond->> (concat (map #(.dockerConfig factory %) (docker-config-files))
+                   (map #(.dockerConfig factory %) (legacy-docker-config-files))
+                   [(.wellKnownCredentialHelpers factory)
+                    (.googleApplicationDefaultCredentials factory)])
+    credential
+    (cons credential)))
+
+(defn- add-credential-retrievers
+  [registry-image retrievers]
+  (doseq [retriever retrievers
+          :when retriever]
+    (.addCredentialRetriever registry-image retriever)))
+
 (defn make-base-image [base-image from-registry-username from-registry-password logger]
-  (-> (RegistryImage/named ^String base-image)
-      (.addCredentialRetriever (or (explicit-credentials from-registry-username from-registry-password)
-                                   (-> (CredentialRetrieverFactory/forImage (ImageReference/parse base-image) logger)
-                                       (.dockerConfig))))))
+  (let [factory (CredentialRetrieverFactory/forImage (ImageReference/parse base-image) logger)]
+    (doto (RegistryImage/named ^String base-image)
+      (add-credential-retrievers
+        (default-credential-retrievers
+          factory
+          :credential (explicit-credentials from-registry-username from-registry-password))))))
 
 (defn make-containerizer [image-type image-name tar-file to-registry-username to-registry-password logger]
-  (Containerizer/to (case image-type
-                      :docker (DockerDaemonImage/named image-name)
-                      :tar (-> (TarImage/at tar-file)
-                               (.named image-name))
-                      :registry (-> (RegistryImage/named image-name)
-                                    (.addCredentialRetriever (or
-                                                              (explicit-credentials to-registry-username to-registry-password)
-                                                              (-> (CredentialRetrieverFactory/forImage (ImageReference/parse image-name) logger)
-                                                                  (.dockerConfig))))))))
+  (Containerizer/to
+    (case image-type
+      :docker (DockerDaemonImage/named image-name)
+      :tar (-> (TarImage/at tar-file)
+               (.named image-name))
+      :registry (doto (RegistryImage/named image-name)
+                  (add-credential-retrievers
+                    (default-credential-retrievers
+                      (CredentialRetrieverFactory/forImage (ImageReference/parse image-name) logger)
+                      :credential (explicit-credentials to-registry-username to-registry-password)))))))
 
 (defn add-include-layers [jib-container-builder includes]
   (reduce (fn [jib-container-builder* include]
