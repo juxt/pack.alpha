@@ -29,6 +29,7 @@
               default = [:libs :paths]
     :platforms - optional, a set of keywords of the form :<os>/<architecture>
                  e.g. #{:linux/amd64 :linux/arm64}
+    :entrypoint - ordered coll to use as command to run, defaults to running your program
 
     Runtime:
     :base-image - base docker image to use, default = gcr.io/distroless/java:11

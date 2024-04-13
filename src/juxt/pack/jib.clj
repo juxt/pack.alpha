@@ -216,6 +216,20 @@
   [^JibContainerBuilder jib-container-builder layers]
   (.setFileEntriesLayers jib-container-builder (into-array FileEntriesLayer layers)))
 
+(defn- make-entrypoint [basis container-roots]
+  (concat ["java"
+           ;; Early in case users override in :jvm-opts
+           "-Dclojure.main.report=stderr"
+           "-Dfile.encoding=UTF-8"]
+          (-> basis :argmap :jvm-opts)
+          ["-cp"
+           (str/join ":"
+                     (map
+                       #(str (get container-roots %))
+                       (:classpath-roots basis)))
+           "clojure.main"]
+          (-> basis :argmap :main-opts)))
+
 (defn jib
   [{:keys [basis
 
@@ -234,6 +248,8 @@
            volumes
            layers
            platforms
+
+           entrypoint
 
            creation-time
            user]
@@ -263,20 +279,7 @@
         (.setWorkingDirectory (AbsoluteUnixPath/get target-dir))
         (.setEnvironment env)
         (.setVolumes (into #{} (map #(AbsoluteUnixPath/get %)) volumes) )
-        (.setEntrypoint
-          (into-array String
-                      (concat ["java"
-                               ;; Early in case users override in :jvm-opts
-                               "-Dclojure.main.report=stderr"
-                               "-Dfile.encoding=UTF-8"]
-                              (-> basis :argmap :jvm-opts)
-                              ["-cp"
-                               (str/join ":"
-                                         (map
-                                           #(str (get container-roots %))
-                                           (:classpath-roots basis)))
-                               "clojure.main"]
-                              (-> basis :argmap :main-opts))))
+        (.setEntrypoint (into-array String (or entrypoint (make-entrypoint basis container-roots))))
         (cond-> (seq platforms)
           (.setPlatforms
            (into #{} (map #(Platform. (name %) (namespace %)) platforms))))
