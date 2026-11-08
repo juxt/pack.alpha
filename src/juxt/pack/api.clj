@@ -107,7 +107,7 @@
   Options
     :basis - required, basis to get libs and paths
     :jar-file - jar file to create
-    :main-class - main class to run jar with default = clojure.main, changing
+    :main-class - main class as a string or symbol, default = \"clojure.main\", changing
                   this requires the use of aot and is considered more advanced.
                   Prefer setting :main-opts in your basis and using
                   clojure.main to load your main."

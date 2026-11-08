@@ -120,11 +120,12 @@
 (defn one-jar
   [{:keys [basis jar-file main-class]
     :or {main-class "clojure.main"}}]
-  (write-jar
-    basis
-    jar-file
-    main-class
-    ;; :main-opts are specified as for passing to clojure.main
-    (when (= "clojure.main" main-class)
-      (when-let [main-opts (-> basis :argmap :main-opts)]
-        (string/join " " (map #(string/escape % {\space "\\ "}) main-opts))))))
+  (let [main-class (str main-class)]
+    (write-jar
+      basis
+      jar-file
+      main-class
+      ;; :main-opts are specified as for passing to clojure.main
+      (when (= "clojure.main" main-class)
+        (when-let [main-opts (-> basis :argmap :main-opts)]
+          (string/join " " (map #(string/escape % {\space "\\ "}) main-opts)))))))
