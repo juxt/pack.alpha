@@ -21,7 +21,7 @@
               path-key
               (let [file (canonicalize (io/file root))]
                 (case (lib-map/classify root)
-                  :jar {:input (io/input-stream file)
+                  :jar {:input #(io/input-stream file)
                         :path ["lib" (str prefix "project.jar")]}
                   :dir {:paths (vfs/files-path (file-seq file) file)
                         :path ["lib" (str prefix "project.jar")]}
@@ -33,7 +33,7 @@
                                       :lib lib-name
                                       :path root)]
                 (case (lib-map/classify root)
-                  :jar {:input (io/input-stream root)
+                  :jar {:input #(io/input-stream root)
                         :path ["lib" (str prefix (elodin/jar-name coordinate))]}
                   :dir {:paths (vfs/files-path (file-seq (io/file root)) (io/file root))
                         :path ["lib" (str prefix (elodin/directory-name coordinate) ".jar")]}

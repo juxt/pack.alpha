@@ -26,4 +26,4 @@
   (write-paths basis path
                (when pom
                  [{:path ["META-INF" "maven" (namespace lib) (name lib) "pom.xml"]
-                   :input (io/input-stream pom)}])))
+                   :input #(io/input-stream pom)}])))

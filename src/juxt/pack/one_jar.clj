@@ -103,7 +103,7 @@
                                         :lib lib-name
                                         :path root)]
                   (case (lib-map/classify root)
-                    :jar {:input (io/input-stream root)
+                    :jar {:input #(io/input-stream root)
                           :path ["lib" (elodin/jar-name coordinate)]}
                     :dir {:paths (vfs/files-path (file-seq (io/file root)) (io/file root))
                           :path ["lib" (format "%s.jar" (elodin/directory-name coordinate))]}
@@ -111,7 +111,7 @@
                     (throw (ex-info "Cannot classify path as jar or dir" {:path root :lib lib-name})))))))
           (:classpath-roots basis))
 
-        [{:path [".version"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input (io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
+        [{:path [".version"], :input #(io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input #(io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
         (let [root (.toFile bootstrap-p)]
           (vfs/files-path
             (filter #(.endsWith (.getName %) ".class") (file-seq root))

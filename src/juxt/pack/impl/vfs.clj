@@ -93,7 +93,7 @@
 
 (defn- write! [stream in]
   (let [buf (byte-array 1024)]
-    (with-open [in in]
+    (with-open [in (in)]
       (loop [n (.read in buf)]
         (when-not (= -1 n)
           (.write stream buf 0 n)
@@ -105,7 +105,7 @@
     (let [out (java.io.PipedOutputStream.)
           in (java.io.PipedInputStream. out)]
       (assoc path
-             :input in
+             :input (fn [] in)
              :output {:stream out
                       :type :jar}))
     path))
@@ -200,7 +200,8 @@
     (doseq [child children]
       (let [out (io/file root (path-seq->str (:path child)))]
         (io/make-parents out)
-        (io/copy (:input child) out)))))
+        (with-open [in ((:input child))]
+          (io/copy in out))))))
 
 (defn write-vfs
   [output paths]
@@ -236,6 +237,6 @@
          {:path (path->path-seq
                   (.relativize (.toPath dir)
                                (.toPath file)))
-          :input (io/input-stream file)
+          :input #(io/input-stream file)
           :last-modified (.lastModified file)})
        (filter (memfn isFile) files)))
