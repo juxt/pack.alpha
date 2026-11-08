@@ -46,7 +46,7 @@ Add this alias to your project:
 [source,clojure]
 ----
 ;; add this to :aliases:
-:pack {:deps {io.github.juxt/pack.alpha {:git/sha "91233900cfb21d293ab0982b87a7b6d7febdee1d"}}
+:pack {:deps {io.github.juxt/pack.alpha {:git/sha "8671c18de67e543f3aa5056482694b50e1b50109"}}
        :ns-default juxt.pack.cli.api}
 ----
 
