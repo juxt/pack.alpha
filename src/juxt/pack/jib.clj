@@ -5,7 +5,7 @@
             [clojure.string :as str])
   (:import (com.google.cloud.tools.jib.api Jib JibContainerBuilder)
            (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath FileEntriesLayer ModificationTimeProvider Platform)
-           (java.nio.file Paths Files LinkOption FileSystems)
+           (java.nio.file Paths FileSystems)
            (com.google.cloud.tools.jib.api Containerizer
                                            DockerDaemonImage
                                            TarImage
@@ -161,17 +161,16 @@
 (defn- add-paths-entry
   [builder root]
   (let [raw-path (Paths/get root string-array)
-        src-path (.resolve (.toPath *the-dir*) raw-path)]
-    (when (Files/exists src-path (into-array LinkOption []))
-      (let [container-path (AbsoluteUnixPath/get
-                             (str target-dir "/" (unique-base-path raw-path)))]
-        {:builder
-         (.addEntryRecursive builder
-                             src-path
-                             container-path
-                             FileEntriesLayer/DEFAULT_FILE_PERMISSIONS_PROVIDER
-                             timestamp-provider)
-         :container-path container-path}))))
+        src-path (.resolve (.toPath *the-dir*) raw-path)
+        container-path (AbsoluteUnixPath/get
+                         (str target-dir "/" (unique-base-path raw-path)))]
+    {:builder
+     (.addEntryRecursive builder
+                         src-path
+                         container-path
+                         FileEntriesLayer/DEFAULT_FILE_PERMISSIONS_PROVIDER
+                         timestamp-provider)
+     :container-path container-path}))
 
 
 (defn- make-builtin-layers
