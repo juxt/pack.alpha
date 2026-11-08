@@ -1,5 +1,6 @@
 {:paths ["src"]
  :deps {org.clojure/tools.deps {:mvn/version "0.31.1646"}
+        org.apache.commons/commons-compress {:mvn/version "1.28.0"}
         clj-commons/fs {:mvn/version "1.6.312"}
         com.google.cloud.tools/jib-core {:mvn/version "0.28.2"}}
 

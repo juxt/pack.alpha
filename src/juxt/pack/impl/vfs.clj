@@ -1,120 +1,21 @@
 (ns juxt.pack.impl.vfs
   (:require
     [clojure.java.io :as io]
-    [clojure.walk :refer [postwalk]]
     [clojure.string :as string]
-    [juxt.pack.impl.elodin
-     :refer [path-seq->str
-             path->path-seq]
-     :as elodin])
+    [juxt.pack.impl.elodin :refer [path-seq->str path->path-seq] :as elodin])
   (:import
-    [java.util.jar JarEntry JarOutputStream Manifest Attributes$Name]
-    [java.util.zip ZipEntry ZipOutputStream]))
-
-(defn- post-order-tree-seq
-  [branch? children root]
-  (let [walk (fn walk [n]
-               (if (branch? n)
-                 (concat (mapcat walk (children n)) [n])
-                 [n]))]
-    (walk root)))
-
-(defn- lazy-post-order-tree-seq
-  [branch? children root]
-  (let [walk (fn walk [n]
-               (lazy-seq
-                 (if (branch? n)
-                   (into (mapcat walk (children n)) [n])
-                   [n])))]
-    (walk root)))
-
-(defn- tree-height
-  [branch? children root]
-  (let [walk (fn walk [n height]
-               (if (branch? n)
-                 (apply max
-                        (inc height)
-                        (map walk
-                             (children n)
-                             (repeat (inc height))))
-                 height))]
-    (walk root 0)))
-
-(defn- process-tree
-  [branch? children f root]
-  (let [walk (fn walk [n height]
-               (if (branch? n)
-                 (f n
-                    (mapv walk (children n) (repeat (inc height)))
-                    height)
-                 (f n nil height)))]
-    (walk root 0)))
-
-(defn- create-thread
-  [name f]
-  (let [t (doto (Thread. f)
-            (.setName name)
-            (.setDaemon false)
-            (.start))]
-    t))
-
-(defn- process-height
-  [height f]
-  (let [in (java.util.concurrent.LinkedBlockingQueue.)]
-    {:t (create-thread (str "process-height-" height)
-                       (fn []
-                         (loop [x (.take in)]
-                           (when (not= x ::end)
-                             (f x)
-                             (recur (.take in))))))
-     :in in}))
-
-(defn- iterate-tree
-  [branch? children processors g]
-  (process-tree branch? children
-                (fn [node children height]
-                  (.put (:in (get processors height))
-                        {:node node
-                         :children children
-                         :height height})
-                  node)
-                g))
-
-(defn- create-processors
-  [tree-height f]
-  (mapv #(process-height % f) (range (inc tree-height))))
-
-(defn- stop-processors
-  [processors]
-  (doseq [p processors]
-    (.put (:in p) ::end))
-  (doseq [p processors]
-    (.join (:t p))))
-
-(defn- write! [stream in]
-  (let [buf (byte-array 1024)]
-    (with-open [in (in)]
-      (loop [n (.read in buf)]
-        (when-not (= -1 n)
-          (.write stream buf 0 n)
-          (recur (.read in buf)))))))
-
-(defn- add-output
-  [path]
-  (if (:paths path)
-    (let [out (java.io.PipedOutputStream.)
-          in (java.io.PipedInputStream. out)]
-      (assoc path
-             :input (fn [] in)
-             :output {:stream out
-                      :type :jar}))
-    path))
-
-(def ^:private path? map?)
+    [java.io ByteArrayInputStream ByteArrayOutputStream]
+    [java.nio.file Files]
+    [java.nio.file.attribute FileAttribute]
+    [java.util.concurrent ConcurrentLinkedQueue Executors LinkedBlockingQueue TimeUnit]
+    [java.util.jar Manifest Attributes$Name]
+    [java.util.zip ZipEntry ZipException]
+    [org.apache.commons.compress.archivers.zip JarMarker ScatterZipOutputStream ZipArchiveEntry ZipArchiveEntryRequest ZipArchiveOutputStream]
+    [org.apache.commons.compress.parallel InputStreamSupplier]))
 
 (defmulti write-output
   "Writes children to a path"
-  (fn [path children]
+  (fn [path _children]
     (:type (:output path))))
 
 (defn- prepare-path
@@ -127,7 +28,8 @@
     (doto entry (.setTime last-modified))
     entry))
 
-(defn- create-manifest [main ext-attrs]
+(defn- create-manifest
+  [main ext-attrs]
   (let [manifest (Manifest.)]
     (let [attributes (.getMainAttributes manifest)]
       (.put attributes Attributes$Name/MANIFEST_VERSION "1.0")
@@ -137,62 +39,175 @@
         (.put attributes (Attributes$Name. (name k)) v)))
     manifest))
 
-(defn- create-parents
-  [out path-seq]
-  (doseq [parent (elodin/path-seq-parents path-seq)
-          ;; Add trailing "/", as some zip implementations require that for
-          ;; directory detection.
-          :let [dir (str (prepare-path parent) "/")]]
+(defn- manifest-child
+  [manifest]
+  (let [bytes (ByteArrayOutputStream.)]
+    (.write (create-manifest (:main manifest) (:ext-attrs manifest)) bytes)
+    (let [data (.toByteArray bytes)]
+      {:path ["META-INF" "MANIFEST.MF"]
+       :input #(ByteArrayInputStream. data)})))
+
+(defn- archive-entries
+  [children manifest]
+  (let [child (when manifest (manifest-child manifest))
+        name (when child (prepare-path (:path child)))
+        initial (if child
+                  [#{name} [[name (:input child) nil]]]
+                  [#{} []])]
+    (second
+      (reduce (fn [[seen entries] [name input last-modified directory?]]
+                (if (contains? seen name)
+                  (if directory?
+                    [seen entries]
+                    (throw (ZipException. (str "duplicate entry: " name))))
+                  [(conj seen name) (conj entries [name input last-modified])]))
+              initial
+              (mapcat (fn [child]
+                        (concat
+                          (map (fn [parent]
+                                 [(str (prepare-path parent) "/")
+                                  #(ByteArrayInputStream. (byte-array 0)) nil true])
+                               (elodin/path-seq-parents (:path child)))
+                          [[(prepare-path (:path child)) (:input child) (:last-modified child) false]]))
+                      children)))))
+
+(defn- close-scatter
+  [streams cleanup]
+  (let [failure (reduce (fn [failure stream]
+                          (try
+                            (.close ^ScatterZipOutputStream stream)
+                            failure
+                            (catch Throwable t
+                              (if failure
+                                (do (.addSuppressed ^Throwable failure t) failure)
+                                t))))
+                        nil streams)]
     (try
-      (.putNextEntry out (ZipEntry. dir))
-      (catch java.util.zip.ZipException e
-        ;; Ignore duplicate entry exceptions
-        (when-not (re-matches #"duplicate entry:.*" (.getMessage e))
-          (throw e)))
-      (finally
-        (.closeEntry out)))))
+      (cleanup)
+      (catch Throwable t
+        (if failure
+          (.addSuppressed ^Throwable failure t)
+          (throw t))))
+    (when failure (throw failure))))
+
+(defn- stop-scatter
+  [executor streams cleanup]
+  (.shutdownNow executor)
+  (let [finish #(close-scatter streams cleanup)
+        defer #(doto (Thread. (fn []
+                                (try
+                                  (.awaitTermination executor Long/MAX_VALUE TimeUnit/NANOSECONDS)
+                                  (finish)
+                                  (catch Throwable _)))
+                              "pack-scatter-cleanup")
+                 (.setDaemon true)
+                 (.start))]
+    (if (try
+          (.awaitTermination executor 1 TimeUnit/SECONDS)
+          (catch InterruptedException e
+            (defer)
+            (.interrupt (Thread/currentThread))
+            (throw e)))
+      (finish)
+      (defer))))
+
+(defn- scatter-stream
+  [streams]
+  (let [file (Files/createTempFile "pack-scatter-" ".zip" (make-array FileAttribute 0))
+        stream (try
+                 (ScatterZipOutputStream/pathBased file)
+                 (catch Throwable t
+                   (try (Files/deleteIfExists file)
+                        (catch Throwable e (.addSuppressed t e)))
+                   (throw t)))]
+    (.add streams stream)
+    stream))
+
+(defn- write-scattered
+  [out entries jar? executor streams]
+  (let [completions (LinkedBlockingQueue.)
+        failure (atom nil)
+        local-stream (proxy [ThreadLocal] []
+                       (initialValue [] (scatter-stream streams)))
+        ordered (object-array (count entries))]
+    (doseq [[index [name input last-modified]] (map-indexed vector entries)]
+      (let [entry (doto (ZipArchiveEntry. ^String name)
+                    (.setMethod ZipEntry/DEFLATED)
+                    (set-last-modified last-modified))
+            _ (when (and jar? (zero? index))
+                (.addAsFirstExtraField entry (JarMarker/getInstance)))
+            request (ZipArchiveEntryRequest/createZipArchiveEntryRequest
+                      entry (reify InputStreamSupplier (get [_] (input))))]
+        (when-let [t @failure] (throw t))
+        (.submit executor ^Runnable
+                 (fn []
+                   (try
+                     (when-not @failure
+                       (let [stream (.get local-stream)]
+                         (.addArchiveEntry ^ScatterZipOutputStream stream request)
+                         (.offer completions [index stream nil])))
+                     (catch Throwable t
+                       (reset! failure t)
+                       (.offer completions [index nil t])))))))
+    (dotimes [_ (count entries)]
+      (let [[index stream error] (.take completions)]
+        (when error (throw error))
+        (aset ordered index stream)))
+    (doseq [stream ordered]
+      (.writeNextZipEntry (.zipEntryWriter ^ScatterZipOutputStream stream) out))))
+
+(defn- with-resource
+  [resource f]
+  (let [result (try
+                 (f resource)
+                 (catch Throwable t
+                   (try (.close ^java.io.Closeable resource)
+                        (catch Throwable e (.addSuppressed t e)))
+                   (throw t)))]
+    (.close ^java.io.Closeable resource)
+    result))
+
+(defn- write-archive
+  [path children manifest]
+  (let [cleanup (or (:cleanup path) (fn []))
+        out (try
+              (ZipArchiveOutputStream. (get-in path [:output :stream]))
+              (catch Throwable t
+                (try (cleanup) (catch Throwable e (.addSuppressed t e)))
+                (throw t)))]
+    (with-resource out
+      (fn [out]
+        (let [[entries executor streams]
+              (try
+                (let [entries (archive-entries children manifest)
+                      streams (ConcurrentLinkedQueue.)
+                      executor (Executors/newFixedThreadPool
+                                 (max 1 (min (count entries) (.availableProcessors (Runtime/getRuntime))))
+                                 (reify java.util.concurrent.ThreadFactory
+                                   (newThread [_ task]
+                                     (doto (Thread. task "pack-scatter-worker") (.setDaemon true)))))]
+                  [entries executor streams])
+                (catch Throwable t
+                  (try (cleanup) (catch Throwable e (.addSuppressed t e)))
+                  (throw t)))]
+          (try
+            (write-scattered out entries (= :jar (get-in path [:output :type])) executor streams)
+            (catch Throwable t
+              (try (stop-scatter executor streams cleanup)
+                   (catch Throwable e (.addSuppressed t e)))
+              (when (instance? InterruptedException t)
+                (.interrupt (Thread/currentThread)))
+              (throw t)))
+          (.shutdown executor)
+          (close-scatter streams cleanup))))))
 
 (defmethod write-output :jar
   [path children]
-  (with-open [out (if-let [manifest (:manifest (:output path))]
-                    (JarOutputStream. (get-in path [:output :stream])
-                                      (create-manifest
-                                        (:main manifest)
-                                        (:ext-attrs manifest)))
-                    (JarOutputStream. (get-in path [:output :stream])))]
-    (doseq [child children]
-      (try
-        (create-parents out (:path child))
-        (doto out
-          ;; TODO: Make the jarentry code more robust around windows paths
-          ;;TODO: Looked into this, \ is never valid in a zip path, which means java.nio.Path is unusable for this case.
-          ; http://www.pkware.com/documents/casestudies/APPNOTE.TXT spec here
-          ; Not much mention is made of backslashes. Tests with `zip` indicated that \ is preserved as part of the filename.
-          ; Forward slash is not a valid character in a windows filename, nor Unix.
-          ; I think the ultimate solution here is to convert '\' to '/' as we do now. I think it covers the common bases.
-          ; It's unclear to me what is expected by having \ in a filename in a zip file would mean, but could be supported if someone articulated it.
-          (.putNextEntry (-> (:path child)
-                             (prepare-path)
-                             (JarEntry.)
-                             (set-last-modified (:last-modified child))))
-          (write! (:input child))
-          (.closeEntry))
-        (catch NullPointerException e
-          (println "NPE while write! on:" (pr-str child))
-          (throw e))))))
+  (write-archive path children (get-in path [:output :manifest])))
 
 (defmethod write-output :zip
   [path children]
-  (with-open [out (ZipOutputStream. (get-in path [:output :stream]))]
-    (doseq [child children]
-      (create-parents out (:path child))
-      (doto out
-        (.putNextEntry (-> (:path child)
-                           (prepare-path)
-                           (ZipEntry.)
-                           (set-last-modified (:last-modified child))))
-        (write! (:input child))
-        (.closeEntry)))))
+  (write-archive path children nil))
 
 (defmethod write-output :dir
   [path children]
@@ -203,33 +218,59 @@
         (with-open [in ((:input child))]
           (io/copy in out))))))
 
+(declare write-vfs)
+
+(defn- materialize-child
+  [child]
+  (if (:paths child)
+    (let [file (Files/createTempFile "pack-nested-" ".jar" (make-array FileAttribute 0))]
+      (try
+        (with-open [out (Files/newOutputStream file (make-array java.nio.file.OpenOption 0))]
+          (write-vfs {:type :jar :stream out} (:paths child)))
+        (assoc child :input #(Files/newInputStream file (make-array java.nio.file.OpenOption 0))
+                     ::scratch file)
+        (catch Throwable t
+          (try (Files/deleteIfExists file)
+               (catch Throwable cleanup (.addSuppressed t cleanup)))
+          (throw t))))
+    child))
+
+(defn- delete-scratch
+  [children]
+  (when-let [failure
+             (reduce (fn [failure child]
+                       (try
+                         (when-let [file (::scratch child)] (Files/deleteIfExists file))
+                         failure
+                         (catch Throwable t
+                           (if failure
+                             (do (.addSuppressed failure t) failure)
+                             t))))
+                     nil children)]
+    (throw failure)))
+
 (defn write-vfs
   [output paths]
-  (let [branch? path?
-        children :paths
-
-        g {:paths (postwalk #(if (path? %) (add-output %) %) paths)
-           :output output}]
-
-    (let [processors
-          (create-processors
-            (tree-height branch? children g)
-            (fn [{:keys [node height children]}]
-              (try
-                (when (:output node)
-                  (cond
-                    (:paths node)
-                    (write-output node children)
-                    
-                    (:input node)
-                    (with-open [o (get-in node [:output :stream])]
-                      (write! o (:input node)))))
-                (catch Exception e
-                  #_(println (str "An exception occurred" (pr-str node height children)))
-                  (throw e)))))]
-      (iterate-tree branch? children processors g)
-      ;; Work is not complete until all processor threads have finished
-      (stop-processors processors))))
+  (let [children (loop [remaining paths children []]
+                   (let [[remaining child]
+                         (try
+                           (when-let [remaining (seq remaining)]
+                             [remaining (materialize-child (first remaining))])
+                           (catch Throwable t
+                             (try (delete-scratch children)
+                                  (catch Throwable e (.addSuppressed t e)))
+                             (when (#{:zip :jar} (:type output))
+                               (try (.close ^java.io.Closeable (:stream output))
+                                    (catch Throwable e (.addSuppressed t e))))
+                             (throw t)))]
+                     (if remaining
+                       (recur (lazy-seq (rest remaining)) (conj children child))
+                       children)))
+        cleanup #(delete-scratch children)]
+    (if (#{:zip :jar} (:type output))
+      (write-output {:output output :cleanup cleanup} children)
+      (with-open [_resource (reify java.io.Closeable (close [_] (cleanup)))]
+        (write-output {:output output} children)))))
 
 (defn files-path
   [files dir]
