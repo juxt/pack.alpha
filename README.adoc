@@ -1,4 +1,4 @@
-= Pack (alpha)
+= Pack
 ifdef::env-github[]
 :toc:
 :toclevels: 4
@@ -6,16 +6,14 @@ endif::[]
 
 Package up Clojure projects in various ways, based on a deps.edn file.
 
-Want to have a chat before opening a ticket?
-Need help or support from the community?
-Find us in the link:https://clojurians.zulipchat.com/#narrow/stream/151045-JUXT[Clojurians Zulipchat #JUXT] stream.
+link:https://dkarvik.github.io/pack/[API documentation]
 
 == Usage
 
 === With tools.build
 
-Pack provides the namespace juxt.pack.api which works well alongside tools.build.
-Find reference documentation on link:https://github.com/juxt/pack.alpha/blob/master/src/juxt/pack/api.clj[the vars].
+Pack provides the namespace io.dominic.pack.api which works well alongside tools.build.
+Find reference documentation in the link:https://dkarvik.github.io/pack/io.dominic.pack.api.html[API reference].
 
 When using tools.build in a monorepo with multiple projects, it can be useful to leverage `clojure.tools.build.api/with-project-root` to specify the directory
 containing the deps.edn file for a particular project. Pack supports `with-project-root` by taking advantage of the included link:https://github.com/clojure/tools.deps[tools.deps] library.
@@ -27,7 +25,7 @@ Simply wrap all Pack calls with `clojure.tools.deps.util.dir/with-dir` and pass 
   (:require [clojure.java.io :as jio]
             [clojure.tools.build.api :as b]
             [clojure.tools.deps.util.dir :as t]
-            [juxt.pack.api :as pack]))
+            [io.dominic.pack.api :as pack]))
 
 (defn pack
  [_]
@@ -46,8 +44,8 @@ Add this alias to your project:
 [source,clojure]
 ----
 ;; add this to :aliases:
-:pack {:deps {io.github.juxt/pack {:git/sha "8671c18de67e543f3aa5056482694b50e1b50109"}}
-       :ns-default juxt.pack.cli.api}
+:pack {:deps {io.github.dkarvik/pack {:git/sha "8671c18de67e543f3aa5056482694b50e1b50109"}}
+       :ns-default io.dominic.pack.cli.api}
 ----
 
 Then you can invoke it with `clj -T:pack`.
@@ -58,11 +56,11 @@ To see usage information, use `clojure -A:deps -T:pack help/dir`
 Pack provides fast, conflict-less, ways to package Clojure programs.
 It provides:
 
-* Docker images
-* AWS Lambda deployment package
-* Self-executable jars (Using One-JAR)
-* "Skinny" jars (Jars which do not contain their dependencies)
-* Library jars
+* link:https://dkarvik.github.io/pack/io.dominic.pack.api.html#var-docker[Docker images]
+* link:https://dkarvik.github.io/pack/io.dominic.pack.api.html#var-aws-lambda[AWS Lambda deployment package]
+* link:https://dkarvik.github.io/pack/io.dominic.pack.api.html#var-one-jar[Self-executable jars] (Using One-JAR)
+* link:https://dkarvik.github.io/pack/io.dominic.pack.api.html#var-skinny["Skinny" jars] (Jars which do not contain their dependencies)
+* link:https://dkarvik.github.io/pack/io.dominic.pack.api.html#var-library[Library jars]
 
 === What does conflict-less mean?
 

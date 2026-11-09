@@ -1,8 +1,8 @@
-(ns juxt.pack.impl.vfs
+(ns io.dominic.pack.impl.vfs
   (:require
     [clojure.java.io :as io]
     [clojure.string :as string]
-    [juxt.pack.impl.elodin :refer [path-seq->str path->path-seq] :as elodin])
+    [io.dominic.pack.impl.elodin :refer [path-seq->str path->path-seq] :as elodin])
   (:import
     [java.io ByteArrayInputStream ByteArrayOutputStream]
     [java.nio.file Files]

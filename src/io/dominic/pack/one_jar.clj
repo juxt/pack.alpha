@@ -1,11 +1,11 @@
-(ns ^:no-doc juxt.pack.one-jar
+(ns ^:no-doc io.dominic.pack.one-jar
   (:require
     [clojure.tools.deps.util.dir :refer [canonicalize]]
     [clojure.java.io :as io]
     [clojure.string :as string]
-    [juxt.pack.impl.elodin :as elodin]
-    [juxt.pack.impl.lib-map :as lib-map]
-    [juxt.pack.impl.vfs :as vfs]
+    [io.dominic.pack.impl.elodin :as elodin]
+    [io.dominic.pack.impl.lib-map :as lib-map]
+    [io.dominic.pack.impl.vfs :as vfs]
     [me.raynes.fs :as fs])
   (:import
    [java.nio.file Files]
@@ -31,12 +31,12 @@
             (map
               #(let [file (io/resource %)]
                  (proxy [javax.tools.SimpleJavaFileObject]
-                   [(java.net.URI. (str "string://" (string/replace % #"juxt/pack" "")))
+                   [(java.net.URI. (str "string://" (string/replace % #"io/dominic/pack" "")))
                     javax.tools.JavaFileObject$Kind/SOURCE]
                    (getCharContent [ignoredEncodingErrors]
                      (slurp file))))
-              #_(comment (into [] (comp (filter (memfn isFile)) (map #(string/replace % #"^src/" ""))) (file-seq (io/file "src/juxt/pack/bootstrap/onejar/src/"))))
-              ["juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/IProperties.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/JarClassLoader.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/Handler.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/OneJarURLConnection.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/OneJarFile.java" "juxt/pack/bootstrap/onejar/src/com/simontuffs/onejar/Boot.java" "juxt/pack/bootstrap/onejar/src/OneJar.java"])]
+              #_(comment (into [] (comp (filter (memfn isFile)) (map #(string/replace % #"^src/" ""))) (file-seq (io/file "src/io/dominic/pack/bootstrap/onejar/src/"))))
+              ["io/dominic/pack/bootstrap/onejar/src/com/simontuffs/onejar/IProperties.java" "io/dominic/pack/bootstrap/onejar/src/com/simontuffs/onejar/JarClassLoader.java" "io/dominic/pack/bootstrap/onejar/src/com/simontuffs/onejar/Handler.java" "io/dominic/pack/bootstrap/onejar/src/com/simontuffs/onejar/OneJarURLConnection.java" "io/dominic/pack/bootstrap/onejar/src/com/simontuffs/onejar/OneJarFile.java" "io/dominic/pack/bootstrap/onejar/src/com/simontuffs/onejar/Boot.java" "io/dominic/pack/bootstrap/onejar/src/OneJar.java"])]
         (-> compiler
             (.getTask *err* file-mgr diag-coll opts nil bootstrap)
             (.call))
@@ -111,7 +111,7 @@
                     (throw (ex-info "Cannot classify path as jar or dir" {:path root :lib lib-name})))))))
           (:classpath-roots basis))
 
-        [{:path [".version"], :input #(io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input #(io/input-stream (io/resource "juxt/pack/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
+        [{:path [".version"], :input #(io/input-stream (io/resource "io/dominic/pack/bootstrap/onejar/resources/.version"))} {:path ["doc" "one-jar-license.txt"], :input #(io/input-stream (io/resource "io/dominic/pack/bootstrap/onejar/resources/doc/one-jar-license.txt"))}]
         (let [root (.toFile bootstrap-p)]
           (vfs/files-path
             (filter #(.endsWith (.getName %) ".class") (file-seq root))

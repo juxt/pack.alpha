@@ -1,8 +1,8 @@
-(ns ^:no-doc juxt.pack.library
+(ns ^:no-doc io.dominic.pack.library
   (:require
     [clojure.tools.deps.util.dir :refer [canonicalize]]
     [clojure.java.io :as io]
-    [juxt.pack.impl.vfs :as vfs]))
+    [io.dominic.pack.impl.vfs :as vfs]))
 
 (defn write-paths
   [basis output-path extra-paths]

@@ -1,10 +1,10 @@
-(ns ^:no-doc juxt.pack.aws-lambda
+(ns ^:no-doc io.dominic.pack.aws-lambda
   (:require
     [clojure.java.io :as io]
     [clojure.tools.deps.util.dir :refer [canonicalize]]
-    [juxt.pack.impl.elodin :as elodin]
-    [juxt.pack.impl.vfs :as vfs]
-    [juxt.pack.impl.lib-map :as lib-map]))
+    [io.dominic.pack.impl.elodin :as elodin]
+    [io.dominic.pack.impl.vfs :as vfs]
+    [io.dominic.pack.impl.lib-map :as lib-map]))
 
 (defn- write-zip
   [basis output]

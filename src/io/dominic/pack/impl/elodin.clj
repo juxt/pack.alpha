@@ -1,4 +1,4 @@
-(ns juxt.pack.impl.elodin
+(ns io.dominic.pack.impl.elodin
   "Master namer elodin will fulfill your naming needs.
 
   Provides functionality for naming a file suitable for use in archives."

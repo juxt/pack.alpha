@@ -4,7 +4,15 @@
         clj-commons/fs {:mvn/version "1.6.312"}
         com.google.cloud.tools/jib-core {:mvn/version "0.28.2"}}
 
- :aliases {:pack {:deps {io.github.juxt/pack {:local/root "."}}
-                  :ns-default juxt.pack.cli.api}
+ :aliases {:pack {:deps {io.github.dkarvik/pack {:local/root "."}}
+                  :ns-default io.dominic.pack.cli.api}
            :library {:exec-args {:path "pack-library.jar"}
-                     :exec-fn library}}}
+                     :exec-fn library}
+           :codox {:extra-deps {codox/codox {:mvn/version "0.10.8"}}
+                   :exec-fn codox.main/generate-docs
+                   :exec-args {:name "Pack"
+                               :description "Package Clojure projects based on deps.edn"
+                               :source-paths ["src"]
+                               :output-path "target/doc"
+                               :namespaces [io.dominic.pack.api io.dominic.pack.cli.api]
+                               :source-uri "https://github.com/dkarvik/pack/blob/{git-commit}/{filepath}#L{line}"}}}}

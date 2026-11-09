@@ -1,4 +1,12 @@
-(ns juxt.pack.api)
+(ns io.dominic.pack.cli.api
+  (:require
+    [clojure.tools.deps :as deps]
+    [io.dominic.pack.api :as pack]))
+
+(defn create-basis
+  "Like deps/create-basis, but excludes :user deps.edn"
+  [{:as params}]
+  (deps/create-basis (merge {:user nil} params)))
 
 (defn docker
   "Build a docker image via jib.
@@ -7,9 +15,9 @@
   form (e.g. gitlibs/:paths are directories).
 
   :jvm-opts and :main-opts are used from :basis, so use :aliases to set it.
-
+  
   Options:
-    :basis - required, used to get paths, deps jvm opts, and main opts
+    :basis - basis to use, if not provided will create a basis without :user
     :image-name - required, name of the docker image
     :image-type - required, keyword of type of image to produce
     :tar-file - tar file to create
@@ -18,7 +26,6 @@
     :layers - ordered coll of:
                 :paths - built-in layer, paths from basis
                 :libs - built-in layer, libs from basis
-                instance of Jib FileEntriesLayer
               default = [:libs :paths]
     :platforms - optional, a set of keywords of the form :<os>/<architecture>
                  e.g. #{:linux/amd64 :linux/arm64}
@@ -39,20 +46,20 @@
 
     Repeatability:
     :creation-time - java.time.Instant to set creation time of image to, default = (Instant/now)
-
+   
   Image types:
     :docker - Upload to docker daemon
     :registry - Upload to a registry, uses :to-registry if set,
                 otherwise ~/.docker/config.json
     :tar - Write a tar file, requires :tar-file to be set"
-  [params]
-  ((requiring-resolve 'juxt.pack.jib/jib) params))
+  [{:keys [basis] :as params}]
+  (pack/docker (assoc params :basis (or basis (create-basis nil)))))
 
 (defn skinny
   "Output jars or directories from paths and libs.
 
   Options
-    :basis - required, basis to use to get deps and paths
+    :basis - basis to use, if not provided will create a basis without :user
     :libs - folder to put libs in, if not supplied libs aren't output,
             default = nil
     :lib-coerce - nil or :jar.  :jar will convert libs to jar files if they are
@@ -61,34 +68,34 @@
             default = nil
     :path-coerce - nil or :jar. :jar will output a jar file to :path instead of
                    a directory, default = nil"
-  [params]
-  ((requiring-resolve 'juxt.pack.skinny/skinny) params))
+  [{:keys [basis] :as params}]
+  (pack/skinny (assoc params :basis (or basis (create-basis nil)))))
 
 (defn library
   "Produce a library from :paths in a basis
-
+  
   Options
-    :basis - required, basis to create library from
+    :basis - basis to use, if not provided will create a basis without :user
     :path - required, location to output library to
     :pom - input pom.xml, if provided will be copied to
            META-INF/maven/<group>/<artifact>/pom.xml
     :lib - required if :pom supplied, used to create pom.xml path"
-  [params]
-  ((requiring-resolve 'juxt.pack.library/library) params))
+  [{:keys [basis] :as params}]
+  (pack/library (assoc params :basis (or basis (create-basis nil)))))
 
 (defn aws-lambda
   "Produce a zip file that can be uploaded to AWS lambda.  You will need to AOT
   prior to building this lambda zip, and then include your aot alias in the
   basis.
-
+  
   libs are converted into jars if they are directories. paths are put straight
   into the zip file.
-
+  
   Options
-    :basis - required, basis to use to get deps and paths
+    :basis - basis to use, if not provided will create a basis without :user
     :lambda-file - required, lambda file to create"
-  [params]
-  ((requiring-resolve 'juxt.pack.aws-lambda/aws-lambda) params))
+  [{:keys [basis] :as params}]
+  (pack/aws-lambda (assoc params :basis (or basis (create-basis nil)))))
 
 (defn one-jar
   "Produce a self-executable jar, using One-Jar.  This is an alternative to an
@@ -97,7 +104,7 @@
   :main-opts from basis will be used as default arguments to the jar.  Create
   an alias with `{:main-opts [\"-m\" \"my.cool.ns\"]}` to specify a startup
   namespace.
-
+  
   Caveats
     - The version of One-Jar is patched to fix miscellaneous bugs
     - This may be replaced with Uno-Jar in the future
@@ -105,11 +112,11 @@
       custom URL scheme.
 
   Options
-    :basis - required, basis to get libs and paths
+    :basis - basis to use, if not provided will create a basis without :user
     :jar-file - jar file to create
     :main-class - main class as a string or symbol, default = \"clojure.main\", changing
                   this requires the use of aot and is considered more advanced.
                   Prefer setting :main-opts in your basis and using
                   clojure.main to load your main."
-  [params]
-  ((requiring-resolve 'juxt.pack.one-jar/one-jar) params))
+  [{:keys [basis] :as params}]
+  (pack/one-jar (assoc params :basis (or basis (create-basis nil)))))

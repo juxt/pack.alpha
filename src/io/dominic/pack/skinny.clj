@@ -1,11 +1,11 @@
-(ns ^:no-doc juxt.pack.skinny
+(ns ^:no-doc io.dominic.pack.skinny
   (:require
     [clojure.tools.deps.util.dir :refer [canonicalize]]
     [clojure.java.io :as io]
     [clojure.string :as string]
-    [juxt.pack.impl.elodin :as elodin]
-    [juxt.pack.impl.lib-map :as lib-map]
-    [juxt.pack.impl.vfs :as vfs]))
+    [io.dominic.pack.impl.elodin :as elodin]
+    [io.dominic.pack.impl.lib-map :as lib-map]
+    [io.dominic.pack.impl.vfs :as vfs]))
 
 (defn write-paths
   [basis output-path output-target]

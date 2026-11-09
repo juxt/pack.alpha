@@ -1,4 +1,4 @@
-(ns juxt.pack.impl.lib-map
+(ns io.dominic.pack.impl.lib-map
   (:require
     [clojure.java.io :as io]))
 

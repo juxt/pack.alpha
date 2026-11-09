@@ -1,7 +1,7 @@
-(ns ^:no-doc juxt.pack.jib
+(ns ^:no-doc io.dominic.pack.jib
   (:require [clojure.tools.deps.util.dir :refer [*the-dir*]]
-            [juxt.pack.impl.lib-map :as lib-map]
-            [juxt.pack.impl.elodin :as elodin]
+            [io.dominic.pack.impl.lib-map :as lib-map]
+            [io.dominic.pack.impl.elodin :as elodin]
             [clojure.string :as str])
   (:import (com.google.cloud.tools.jib.api Jib JibContainerBuilder)
            (com.google.cloud.tools.jib.api.buildplan AbsoluteUnixPath FileEntriesLayer ModificationTimeProvider Platform)
