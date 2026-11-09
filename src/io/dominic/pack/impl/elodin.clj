@@ -6,7 +6,7 @@
    [clojure.java.io :as io]
    [clojure.string :as string])
   (:import
-   [java.nio.file Files Paths]))
+   [java.nio.file Files Path Paths]))
 
 (defn- paths-get
   [[first & more]]
@@ -17,7 +17,7 @@
   (str (paths-get path-seq)))
 
 (defn path->path-seq
-  [path]
+  [^Path path]
   (->> path
        .iterator
        iterator-seq
@@ -80,7 +80,7 @@
   (string/join
     "-"
     (path->path-seq
-      (.relativize (str->abs-path root)
+      (.relativize ^Path (str->abs-path root)
                    (str->abs-path path)))))
 
 (defn jar-name

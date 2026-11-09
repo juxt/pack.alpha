@@ -4,10 +4,10 @@
     [clojure.string :as string]
     [io.dominic.pack.impl.elodin :refer [path-seq->str path->path-seq] :as elodin])
   (:import
-    [java.io ByteArrayInputStream ByteArrayOutputStream]
+    [java.io ByteArrayInputStream ByteArrayOutputStream File OutputStream]
     [java.nio.file Files]
     [java.nio.file.attribute FileAttribute]
-    [java.util.concurrent ConcurrentLinkedQueue Executors LinkedBlockingQueue TimeUnit]
+    [java.util.concurrent ConcurrentLinkedQueue ExecutorService Executors LinkedBlockingQueue TimeUnit]
     [java.util.jar Manifest Attributes$Name]
     [java.util.zip ZipEntry ZipException]
     [org.apache.commons.compress.archivers.zip JarMarker ScatterZipOutputStream ZipArchiveEntry ZipArchiveEntryRequest ZipArchiveOutputStream]
@@ -23,7 +23,7 @@
   (string/join "/" (map #(string/replace % #"\\" "/") path)))
 
 (defn set-last-modified
-  [entry last-modified]
+  [^ZipEntry entry last-modified]
   (if last-modified
     (doto entry (.setTime last-modified))
     entry))
@@ -42,7 +42,7 @@
 (defn- manifest-child
   [manifest]
   (let [bytes (ByteArrayOutputStream.)]
-    (.write (create-manifest (:main manifest) (:ext-attrs manifest)) bytes)
+    (.write ^Manifest (create-manifest (:main manifest) (:ext-attrs manifest)) bytes)
     (let [data (.toByteArray bytes)]
       {:path ["META-INF" "MANIFEST.MF"]
        :input #(ByteArrayInputStream. data)})))
@@ -91,7 +91,7 @@
     (when failure (throw failure))))
 
 (defn- stop-scatter
-  [executor streams cleanup]
+  [^ExecutorService executor streams cleanup]
   (.shutdownNow executor)
   (let [finish #(close-scatter streams cleanup)
         defer #(doto (Thread. (fn []
@@ -112,7 +112,7 @@
       (defer))))
 
 (defn- scatter-stream
-  [streams]
+  [^ConcurrentLinkedQueue streams]
   (let [file (Files/createTempFile "pack-scatter-" ".zip" (make-array FileAttribute 0))
         stream (try
                  (ScatterZipOutputStream/pathBased file)
@@ -124,7 +124,7 @@
     stream))
 
 (defn- write-scattered
-  [out entries jar? executor streams]
+  [out entries jar? ^ExecutorService executor streams]
   (let [completions (LinkedBlockingQueue.)
         failure (atom nil)
         local-stream (proxy [ThreadLocal] []
@@ -171,7 +171,7 @@
   [path children manifest]
   (let [cleanup (or (:cleanup path) (fn []))
         out (try
-              (ZipArchiveOutputStream. (get-in path [:output :stream]))
+              (ZipArchiveOutputStream. ^OutputStream (get-in path [:output :stream]))
               (catch Throwable t
                 (try (cleanup) (catch Throwable e (.addSuppressed t e)))
                 (throw t)))]
@@ -198,7 +198,7 @@
               (when (instance? InterruptedException t)
                 (.interrupt (Thread/currentThread)))
               (throw t)))
-          (.shutdown executor)
+          (.shutdown ^ExecutorService executor)
           (close-scatter streams cleanup))))))
 
 (defmethod write-output :jar
@@ -215,7 +215,7 @@
     (doseq [child children]
       (let [out (io/file root (path-seq->str (:path child)))]
         (io/make-parents out)
-        (with-open [in ((:input child))]
+        (with-open [in ^java.io.InputStream ((:input child))]
           (io/copy in out))))))
 
 (declare write-vfs)
@@ -244,7 +244,7 @@
                          failure
                          (catch Throwable t
                            (if failure
-                             (do (.addSuppressed failure t) failure)
+                             (do (.addSuppressed ^Throwable failure t) failure)
                              t))))
                      nil children)]
     (throw failure)))
@@ -273,11 +273,11 @@
         (write-output {:output output} children)))))
 
 (defn files-path
-  [files dir]
-  (map (fn [file]
+  [files ^File dir]
+  (map (fn [^File file]
          {:path (path->path-seq
                   (.relativize (.toPath dir)
                                (.toPath file)))
           :input #(io/input-stream file)
           :last-modified (.lastModified file)})
-       (filter (memfn isFile) files)))
+       (filter (fn [^File file] (.isFile file)) files)))
