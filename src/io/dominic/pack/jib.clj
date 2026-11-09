@@ -232,14 +232,13 @@
 (defn jib
   [{:keys [basis
 
-           base-image from-registry-username from-registry-password
+           base-image from-registry
 
            env
            image-type
            image-name
            tar-file
-           to-registry-username
-           to-registry-password
+           to-registry
 
            labels
            tags
@@ -255,12 +254,16 @@
     :or {base-image "gcr.io/distroless/java:11"
          creation-time (java.time.Instant/now)
          layers [:libs :paths]
-         env {}}}]
+         env {}}
+    :as opts}]
   (let [tar-file (if (string? tar-file)
                    (Paths/get tar-file string-array)
                    tar-file)
         logger (make-logger)
-        base-image-with-creds (make-base-image base-image from-registry-username from-registry-password logger)
+        base-image-with-creds (make-base-image base-image
+                                              (or (:from-registry-username opts) (:username from-registry))
+                                              (or (:from-registry-password opts) (:password from-registry))
+                                              logger)
         {:keys [libs-layer paths-layer container-roots]} (make-builtin-layers basis)]
     (-> (Jib/from base-image-with-creds)
         (add-labels labels)
@@ -288,7 +291,7 @@
               image-type
               image-name
               tar-file
-              to-registry-username
-              to-registry-password
+              (or (:to-registry-username opts) (:username to-registry))
+              (or (:to-registry-password opts) (:password to-registry))
               logger)
             tags)))))
